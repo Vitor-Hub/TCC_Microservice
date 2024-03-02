@@ -1,0 +1,5 @@
+com\mstcc\userms\entities\User.class
+com\mstcc\userms\UserMsApplication.class
+com\mstcc\userms\controllers\UserController.class
+com\mstcc\userms\services\UserService.class
+com\mstcc\userms\repositories\UserRepository.class

@@ -1,0 +1,3 @@
+com\mstcc\postsms\PostsMsApplication.class
+com\mstcc\entities\Post.class
+com\mstcc\repositories\PostRepository.class

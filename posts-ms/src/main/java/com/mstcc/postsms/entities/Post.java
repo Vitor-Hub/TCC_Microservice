@@ -1,4 +1,4 @@
-package com.mstcc.entities;
+package com.mstcc.postsms.entities;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
