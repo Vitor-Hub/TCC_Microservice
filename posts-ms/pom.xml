@@ -11,7 +11,7 @@
     <groupId>com.mstcc</groupId>
     <artifactId>posts-ms</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>user-ms</name>
+    <name>post-ms</name>
     <description>Microservice for TCC</description>
     <properties>
         <java.version>17</java.version>

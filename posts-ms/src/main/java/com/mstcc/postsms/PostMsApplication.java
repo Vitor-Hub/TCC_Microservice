@@ -1,7 +1,13 @@
 package com.mstcc.postsms;
 
-public class PostsMsApplication {
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class PostMsApplication {
+
     public static void main(String[] args) {
-        System.out.println("Hello world!");
+        SpringApplication.run(PostMsApplication.class, args);
     }
+
 }

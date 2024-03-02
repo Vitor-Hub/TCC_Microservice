@@ -25,13 +25,15 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
-            <!-- Outras dependências comuns -->
         </dependencies>
     </dependencyManagement>
 
     <modules>
-        <module>posts-ms</module>
         <module>users-ms</module>
+        <module>posts-ms</module>
+        <module>likes-ms</module>
+        <module>friendship-ms</module>
+        <module>comments-ms</module>
     </modules>
 
     <build>
