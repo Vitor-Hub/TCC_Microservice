@@ -1,3 +1,5 @@
-com\mstcc\postsms\PostsMsApplication.class
-com\mstcc\entities\Post.class
-com\mstcc\repositories\PostRepository.class
+com\mstcc\postsms\PostMsApplication.class
+com\mstcc\postsms\controllers\PostController.class
+com\mstcc\postsms\entities\Post.class
+com\mstcc\postsms\repositories\PostRepository.class
+com\mstcc\postsms\services\PostService.class
