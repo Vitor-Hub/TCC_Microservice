@@ -30,8 +30,8 @@
     </dependencyManagement>
 
     <modules>
-        <module>user-ms</module>
         <module>posts-ms</module>
+        <module>users-ms</module>
     </modules>
 
     <build>
