@@ -1,0 +1,46 @@
+package com.mstcc.postsms.controllers;
+
+import com.mstcc.postsms.dto.PostDTO;
+import com.mstcc.postsms.services.PostService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/posts")
+public class PostController {
+
+    private final PostService postService;
+
+    @Autowired
+    public PostController(PostService postService) {
+        this.postService = postService;
+    }
+
+    @GetMapping
+    public ResponseEntity<List<PostDTO>> getAllPosts() {
+        List<PostDTO> postDTOs = postService.findAllPosts();
+        return ResponseEntity.ok(postDTOs);
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<PostDTO> getPostById(@PathVariable Long id) {
+        return postService.findPostById(id)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @PostMapping
+    public ResponseEntity<PostDTO> createPost(@RequestBody PostDTO postDto) {
+        PostDTO savedPostDto = postService.savePost(postDto);
+        return ResponseEntity.ok(savedPostDto);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deletePost(@PathVariable Long id) {
+        postService.deletePost(id);
+        return ResponseEntity.noContent().build();
+    }
+}

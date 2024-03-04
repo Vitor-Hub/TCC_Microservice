@@ -9,9 +9,9 @@
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>com.mstcc</groupId>
-    <artifactId>friendship-ms</artifactId>
+    <artifactId>like-ms</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>friendship-ms</name>
+    <name>like-ms</name>
     <description>Microservice for TCC</description>
     <properties>
         <java.version>17</java.version>

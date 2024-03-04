@@ -29,9 +29,9 @@
     </dependencyManagement>
 
     <modules>
-        <module>users-ms</module>
-        <module>posts-ms</module>
-        <module>likes-ms</module>
+        <module>user-ms</module>
+        <module>post-ms</module>
+        <module>like-ms</module>
         <module>friendship-ms</module>
         <module>comments-ms</module>
     </modules>
