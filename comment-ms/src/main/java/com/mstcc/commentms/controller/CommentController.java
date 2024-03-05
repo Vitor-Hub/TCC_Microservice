@@ -1,5 +1,6 @@
 package com.mstcc.commentms.controller;
 
+import com.mstcc.commentms.dto.CommentDTO;
 import com.mstcc.commentms.entities.Comment;
 import com.mstcc.commentms.services.CommentService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,5 +42,18 @@ public class CommentController {
     public ResponseEntity<Void> deleteComment(@PathVariable Long id) {
         commentService.deleteComment(id);
         return ResponseEntity.ok().build();
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<CommentDTO> updateComment(@PathVariable Long id, @RequestBody CommentDTO commentDto) {
+        return commentService.updateComment(id, commentDto)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/post/{postId}")
+    public ResponseEntity<List<Comment>> getCommentsByPostId(@PathVariable Long postId) {
+        List<Comment> comments = commentService.getCommentsByPostId(postId);
+        return ResponseEntity.ok(comments);
     }
 }

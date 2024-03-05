@@ -21,20 +21,20 @@ public class PostController {
 
     @GetMapping
     public ResponseEntity<List<PostDTO>> getAllPosts() {
-        List<PostDTO> postDTOs = postService.findAllPosts();
-        return ResponseEntity.ok(postDTOs);
+        List<PostDTO> posts = postService.getAllPosts();
+        return ResponseEntity.ok(posts);
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<PostDTO> getPostById(@PathVariable Long id) {
-        return postService.findPostById(id)
+        return postService.getPostById(id)
                 .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
+                .orElse(ResponseEntity.notFound().build());
     }
 
     @PostMapping
     public ResponseEntity<PostDTO> createPost(@RequestBody PostDTO postDto) {
-        PostDTO savedPostDto = postService.savePost(postDto);
+        PostDTO savedPostDto = postService.createPost(postDto);
         return ResponseEntity.ok(savedPostDto);
     }
 

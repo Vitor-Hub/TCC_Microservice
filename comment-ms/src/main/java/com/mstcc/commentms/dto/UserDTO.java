@@ -1,12 +1,11 @@
-package com.mstcc.postsms.dto;
+package com.mstcc.commentms.dto;
 
 public class UserDTO {
-
     private Long id;
     private String username;
     private String email;
 
-    // Getters and Setters
+    // Getters e setters
 
     public Long getId() {
         return id;
@@ -31,5 +30,4 @@ public class UserDTO {
     public void setEmail(String email) {
         this.email = email;
     }
-
 }
