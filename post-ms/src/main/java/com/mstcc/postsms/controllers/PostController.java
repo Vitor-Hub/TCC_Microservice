@@ -43,4 +43,17 @@ public class PostController {
         postService.deletePost(id);
         return ResponseEntity.noContent().build();
     }
+
+    @PutMapping("/user/{userId}/posts/{postId}")
+    public ResponseEntity<PostDTO> updatePostContent(@PathVariable Long userId, @PathVariable Long postId, @RequestBody PostDTO postDto) {
+        return postService.updatePostContentByUser(userId, postId, postDto.getContent())
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<List<PostDTO>> getPostsByUser(@PathVariable Long userId) {
+        List<PostDTO> postDTOs = postService.getPostsByUser(userId);
+        return ResponseEntity.ok(postDTOs);
+    }
 }

@@ -30,6 +30,16 @@ public class UserService {
         return userRepository.save(user);
     }
 
+    public Optional<User> updateUser(Long id, User userDetails) {
+        return userRepository.findById(id).map(user -> {
+            user.setUsername(userDetails.getUsername());
+            user.setEmail(userDetails.getEmail());
+            user.setPassword(userDetails.getPassword());
+            // Atualize outros campos conforme necessário
+            return userRepository.save(user);
+        });
+    }
+
     public void deleteUser(Long id) {
         userRepository.deleteById(id);
     }
