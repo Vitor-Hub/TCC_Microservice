@@ -4,7 +4,9 @@ import com.mstcc.friendshipms.entities.Friendship;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
+
 @Repository
 public interface FriendshipRepository extends JpaRepository<Friendship, Long> {
-    // You can add custom query methods if needed
+    List<Friendship> findByUserId1OrUserId2(Long userId1, Long userId2);
 }

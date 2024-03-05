@@ -56,5 +56,25 @@ public class PostService {
         UserDTO userDTO = userResponse.getBody();
         return new PostDTO(post, userDTO);
     }
+
+    public Optional<PostDTO> updatePostContentByUser(Long userId, Long postId, String newContent) {
+        return postRepository.findByIdAndUserId(postId, userId).map(post -> {
+            post.setContent(newContent);
+            Post updatedPost = postRepository.save(post);
+            return new PostDTO(updatedPost, userFeignClient.getUserById(userId).getBody());
+        });
+    }
+
+    public List<PostDTO> getPostsByUser(Long userId) {
+        ResponseEntity<UserDTO> userResponse = userFeignClient.getUserById(userId);
+        if (!userResponse.getStatusCode().is2xxSuccessful()) {
+            throw new RuntimeException("User not found");
+        }
+
+        List<Post> posts = postRepository.findByUserId(userId);
+        return posts.stream()
+                .map(post -> new PostDTO(post, userResponse.getBody()))
+                .collect(Collectors.toList());
+    }
 }
 

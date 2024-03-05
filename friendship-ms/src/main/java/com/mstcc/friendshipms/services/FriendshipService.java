@@ -1,5 +1,6 @@
 package com.mstcc.friendshipms.services;
 
+import com.mstcc.friendshipms.dto.UserDTO;
 import com.mstcc.friendshipms.entities.Friendship;
 import com.mstcc.friendshipms.feignclients.UserFeignClient;
 import com.mstcc.friendshipms.repositories.FriendshipRepository;
@@ -14,7 +15,7 @@ import java.util.Optional;
 public class FriendshipService {
 
     private final FriendshipRepository friendshipRepository;
-    private final UserFeignClient userFeignClient; // Injeção do UserFeignClient
+    private final UserFeignClient userFeignClient;
 
     @Autowired
     public FriendshipService(FriendshipRepository friendshipRepository, UserFeignClient userFeignClient) {
@@ -22,37 +23,45 @@ public class FriendshipService {
         this.userFeignClient = userFeignClient;
     }
 
-    public Friendship saveFriendship(Friendship friendship) {
-        return friendshipRepository.save(friendship);
+    public List<Friendship> findAllFriendships() {
+        return friendshipRepository.findAll();
     }
 
     public Optional<Friendship> getFriendshipById(Long id) {
         return friendshipRepository.findById(id);
     }
 
-    public List<Friendship> findAllFriendships() {
-        return friendshipRepository.findAll();
-    }
-
     public void deleteFriendship(Long id) {
         friendshipRepository.deleteById(id);
     }
 
-    public Optional<Friendship> updateFriendship(Long id, Friendship friendshipDetails) {
-        return friendshipRepository.findById(id).map(friendship -> {
-            friendship.setStatus(friendshipDetails.getStatus());
+    public Friendship createAndValidateFriendship(Friendship friendship) {
+        if (validateUsersExistence(friendship.getUserId1(), friendship.getUserId2())) {
             return friendshipRepository.save(friendship);
-        });
+        } else {
+            return null; // Ou você pode lançar uma exceção específica aqui
+        }
     }
 
-    public boolean validateUsersExistence(Long userId1, Long userId2) {
-        try {
-            ResponseEntity<?> user1Response = userFeignClient.getUserById(userId1);
-            ResponseEntity<?> user2Response = userFeignClient.getUserById(userId2);
+    public Optional<Friendship> updateAndValidateFriendship(Long id, Friendship friendshipDetails) {
+        return friendshipRepository.findById(id).map(existingFriendship -> {
+            if (validateUsersExistence(friendshipDetails.getUserId1(), friendshipDetails.getUserId2())) {
+                existingFriendship.setStatus(friendshipDetails.getStatus());
+                return Optional.of(friendshipRepository.save(existingFriendship));
+            } else {
+                return Optional.<Friendship>empty(); // Ou você pode lançar uma exceção específica aqui
+            }
+        }).orElse(Optional.empty());
+    }
 
-            return user1Response.getStatusCode().is2xxSuccessful() && user2Response.getStatusCode().is2xxSuccessful();
-        } catch (Exception e) {
-            return false;
-        }
+    private boolean validateUsersExistence(Long userId1, Long userId2) {
+        ResponseEntity<UserDTO> user1Response = userFeignClient.getUserById(userId1);
+        ResponseEntity<UserDTO> user2Response = userFeignClient.getUserById(userId2);
+
+        return user1Response.getStatusCode().is2xxSuccessful() && user2Response.getStatusCode().is2xxSuccessful();
+    }
+
+    public List<Friendship> findFriendshipsByUserId(Long userId) {
+        return friendshipRepository.findByUserId1OrUserId2(userId, userId);
     }
 }
