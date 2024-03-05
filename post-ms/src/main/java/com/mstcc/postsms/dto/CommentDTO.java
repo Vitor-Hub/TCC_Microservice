@@ -2,7 +2,7 @@ package com.mstcc.postsms.dto;
 
 public class CommentDTO {
     private Long id;
-    private UserDTO user;
+    private Long userId;
     private String content;
 
     // Getters e Setters
@@ -15,12 +15,12 @@ public class CommentDTO {
         this.id = id;
     }
 
-    public UserDTO getUser() {
-        return user;
+    public Long getUserId() {
+        return userId;
     }
 
-    public void setUser(UserDTO user) {
-        this.user = user;
+    public void setUserId(Long userId) {
+        this.userId = userId;
     }
 
     public String getContent() {
