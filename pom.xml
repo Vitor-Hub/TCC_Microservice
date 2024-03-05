@@ -33,7 +33,7 @@
         <module>post-ms</module>
         <module>like-ms</module>
         <module>friendship-ms</module>
-        <module>comments-ms</module>
+        <module>comment-ms</module>
     </modules>
 
     <build>

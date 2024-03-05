@@ -14,15 +14,11 @@ public class Comment {
     @Column(nullable = false)
     private String content;
 
-    //TODO: Atualizar relacionamento entre os serviços
-//    @ManyToOne(fetch = FetchType.LAZY)
-//    @JoinColumn(name = "post_id", nullable = false)
-//    private Post post;
+    @Column(name = "post_id", nullable = false)
+    private Long postId;
 
-    //TODO: Atualizar relacionamento entre os serviços
-//    @ManyToOne(fetch = FetchType.LAZY)
-//    @JoinColumn(name = "user_id", nullable = false)
-//    private User user;
+    @Column(name = "user_id", nullable = false)
+    private Long userId;
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -31,6 +27,8 @@ public class Comment {
     public void prePersist() {
         createdAt = LocalDateTime.now();
     }
+
+    // Getters e setters
 
     public Long getId() {
         return id;
@@ -48,21 +46,21 @@ public class Comment {
         this.content = content;
     }
 
-//    public Post getPost() {
-//        return post;
-//    }
-//
-//    public void setPost(Post post) {
-//        this.post = post;
-//    }
+    public Long getPostId() {
+        return postId;
+    }
 
-//    public User getUser() {
-//        return user;
-//    }
+    public void setPostId(Long postId) {
+        this.postId = postId;
+    }
 
-//    public void setUser(User user) {
-//        this.user = user;
-//    }
+    public Long getUserId() {
+        return userId;
+    }
+
+    public void setUserId(Long userId) {
+        this.userId = userId;
+    }
 
     public LocalDateTime getCreatedAt() {
         return createdAt;

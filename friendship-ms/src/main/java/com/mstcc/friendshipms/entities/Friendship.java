@@ -28,6 +28,8 @@ public class Friendship {
         createdAt = LocalDateTime.now();
     }
 
+    // Getters e setters
+
     public Long getId() {
         return id;
     }
