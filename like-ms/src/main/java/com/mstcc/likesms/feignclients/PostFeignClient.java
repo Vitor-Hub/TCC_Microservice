@@ -6,7 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
-@FeignClient(name = "post-ms", url = "localhost:8082", path = "/api/posts")
+@FeignClient(name = "post-ms", path = "/api/posts")
 public interface PostFeignClient {
 
     @GetMapping("/{postId}")
