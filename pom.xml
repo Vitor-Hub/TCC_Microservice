@@ -34,6 +34,7 @@
         <module>like-ms</module>
         <module>friendship-ms</module>
         <module>comment-ms</module>
+        <module>eureka-server-ms</module>
     </modules>
 
     <build>
