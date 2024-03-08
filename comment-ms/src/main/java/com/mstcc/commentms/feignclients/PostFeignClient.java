@@ -6,9 +6,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
-@FeignClient(name = "post-service")
+@FeignClient(name = "post-ms", path = "/api/posts")
 public interface PostFeignClient {
 
-    @GetMapping("/api/posts/{postId}")
+    @GetMapping("/{postId}")
     ResponseEntity<PostDTO> getPostById(@PathVariable("postId") Long postId);
 }

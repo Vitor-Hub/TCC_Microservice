@@ -35,6 +35,7 @@
         <module>friendship-ms</module>
         <module>comment-ms</module>
         <module>eureka-server-ms</module>
+        <module>gateway-service-ms</module>
     </modules>
 
     <build>
