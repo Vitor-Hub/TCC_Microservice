@@ -6,9 +6,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
-@FeignClient(name = "user-service")
+@FeignClient(name = "user-ms", path = "/api/users")
 public interface UserFeignClient {
 
-    @GetMapping("/api/users/{userId}")
+    @GetMapping("/{userId}")
     ResponseEntity<UserDTO> getUserById(@PathVariable("userId") Long userId);
 }
