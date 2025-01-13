@@ -35,7 +35,6 @@ public class UserService {
             user.setUsername(userDetails.getUsername());
             user.setEmail(userDetails.getEmail());
             user.setPassword(userDetails.getPassword());
-            // Atualize outros campos conforme necessário
             return userRepository.save(user);
         });
     }
