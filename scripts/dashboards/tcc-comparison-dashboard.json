@@ -1,0 +1,74 @@
+{
+  "id": null,
+  "uid": "tcc-comparison",
+  "title": "TCC - Microsserviços vs Monolítico",
+  "tags": ["tcc", "performance"],
+  "timezone": "browser",
+  "schemaVersion": 30,
+  "version": 1,
+  "refresh": "5s",
+  "panels": [
+    {
+      "type": "graph",
+      "title": "Latência p95 (ms)",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{app!=\"monolithic\"}[1m])) by (le, app)) * 1000",
+          "legendFormat": "{{app}} (microsserviços)"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{app=\"monolithic\"}[1m])) by (le)) * 1000",
+          "legendFormat": "Monolítico"
+        }
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "Throughput (req/s)",
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count{app!=\"monolithic\"}[1m])) by (app)",
+          "legendFormat": "{{app}} (microsserviços)"
+        },
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count{app=\"monolithic\"}[1m]))",
+          "legendFormat": "Monolítico"
+        }
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "Taxa de Erros (%)",
+      "targets": [
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count{app!=\"monolithic\",status!~\"2..\"}[1m])) by (app) / sum(rate(http_server_requests_seconds_count{app!=\"monolithic\"}[1m])) by (app) * 100",
+          "legendFormat": "{{app}} (microsserviços)"
+        },
+        {
+          "expr": "sum(rate(http_server_requests_seconds_count{app=\"monolithic\",status!~\"2..\"}[1m])) / sum(rate(http_server_requests_seconds_count{app=\"monolithic\"}[1m])) * 100",
+          "legendFormat": "Monolítico"
+        }
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "Uso de CPU (%)",
+      "targets": [
+        {
+          "expr": "100 - (avg by (instance) (irate(node_cpu_seconds_total{mode=\"idle\"}[1m])) * 100)",
+          "legendFormat": "{{instance}}"
+        }
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "Uso de Memória (%)",
+      "targets": [
+        {
+          "expr": "(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100",
+          "legendFormat": "{{instance}}"
+        }
+      ]
+    }
+  ]
+}
