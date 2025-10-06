@@ -4,26 +4,56 @@ global:
 
 scrape_configs:
   # ======================
-  # Microsserviços (Spring Boot Actuator)
+  # Gateway principal (porta 8765)
   # ======================
-  - job_name: "apps"
+  - job_name: "gateway"
     metrics_path: /actuator/prometheus
     static_configs:
-      - targets: ["host.docker.internal:18081"]
-        labels: { app: "user-ms" }
-      - targets: ["host.docker.internal:18082"]
-        labels: { app: "post-ms" }
-      - targets: ["host.docker.internal:18083"]
-        labels: { app: "like-ms" }
-      - targets: ["host.docker.internal:18084"]
-        labels: { app: "friendship-ms" }
-      - targets: ["host.docker.internal:18085"]
-        labels: { app: "comment-ms" }
-      - targets: ["host.docker.internal:19000"]
-        labels: { app: "gateway" }
+      - targets: ["host.docker.internal:8765"]
+        labels:
+          app: "gateway"
 
   # ======================
-  # Infra
+  # Microsserviços acessíveis via Gateway
+  # (cada um expõe /actuator/prometheus através de seu prefixo)
+  # ======================
+  - job_name: "microservices"
+    metrics_path: /user-ms/actuator/prometheus
+    static_configs:
+      - targets: ["host.docker.internal:8765"]
+        labels:
+          app: "user-ms"
+
+  - job_name: "post-ms"
+    metrics_path: /post-ms/actuator/prometheus
+    static_configs:
+      - targets: ["host.docker.internal:8765"]
+        labels:
+          app: "post-ms"
+
+  - job_name: "like-ms"
+    metrics_path: /like-ms/actuator/prometheus
+    static_configs:
+      - targets: ["host.docker.internal:8765"]
+        labels:
+          app: "like-ms"
+
+  - job_name: "friendship-ms"
+    metrics_path: /friendship-ms/actuator/prometheus
+    static_configs:
+      - targets: ["host.docker.internal:8765"]
+        labels:
+          app: "friendship-ms"
+
+  - job_name: "comment-ms"
+    metrics_path: /comment-ms/actuator/prometheus
+    static_configs:
+      - targets: ["host.docker.internal:8765"]
+        labels:
+          app: "comment-ms"
+
+  # ======================
+  # Infraestrutura
   # ======================
   - job_name: "node"
     static_configs:
@@ -35,5 +65,4 @@ scrape_configs:
 
   - job_name: "k6"
     static_configs:
-      - targets: [ "host.docker.internal:9464" ]
-
+      - targets: ["host.docker.internal:9464"]
