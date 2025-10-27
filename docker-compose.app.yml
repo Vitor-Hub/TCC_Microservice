@@ -1,0 +1,112 @@
+version: "3.9"
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: tcc_mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: microsservice_db
+      MYSQL_USER: tcc
+      MYSQL_PASSWORD: tcc
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tcc-network
+
+  eureka-server:
+    build: ./eureka-server-ms
+    container_name: micro_eureka
+    ports:
+      - "8761:8761"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - tcc-network
+
+  gateway-service:
+    build: ./gateway-service-ms
+    container_name: micro_api_gateway
+    ports:
+      - "8765:8765"
+    environment:
+      - EUREKA_SERVER=http://micro_eureka:8761/eureka
+    depends_on:
+      - eureka-server
+    networks:
+      - tcc-network
+
+  user-ms:
+    build: ./user-ms
+    container_name: micro_user_service
+    ports:
+      - "18081:18081"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+    networks:
+      - tcc-network
+
+  post-ms:
+    build: ./post-ms
+    container_name: micro_post_service
+    ports:
+      - "18082:18082"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+    networks:
+      - tcc-network
+
+  comment-ms:
+    build: ./comment-ms
+    container_name: micro_comment_service
+    ports:
+      - "18083:18083"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+    networks:
+      - tcc-network
+
+  friendship-ms:
+    build: ./friendship-ms
+    container_name: micro_friendship_service
+    ports:
+      - "18084:18084"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+    networks:
+      - tcc-network
+
+  like-ms:
+    build: ./like-ms
+    container_name: micro_like_service
+    ports:
+      - "18085:18085"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+    networks:
+      - tcc-network
+
+networks:
+  tcc-network:
+    driver: bridge

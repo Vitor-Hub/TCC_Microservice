@@ -1,74 +1,121 @@
 {
-  "id": null,
-  "uid": "tcc-comparison",
-  "title": "TCC - Microsserviços vs Monolítico",
-  "tags": ["tcc", "performance"],
-  "timezone": "browser",
-  "schemaVersion": 30,
-  "version": 1,
-  "refresh": "5s",
-  "panels": [
-    {
-      "type": "graph",
-      "title": "Latência p95 (ms)",
-      "targets": [
-        {
-          "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{app!=\"monolithic\"}[1m])) by (le, app)) * 1000",
-          "legendFormat": "{{app}} (microsserviços)"
-        },
-        {
-          "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{app=\"monolithic\"}[1m])) by (le)) * 1000",
-          "legendFormat": "Monolítico"
-        }
-      ]
-    },
-    {
-      "type": "graph",
-      "title": "Throughput (req/s)",
-      "targets": [
-        {
-          "expr": "sum(rate(http_server_requests_seconds_count{app!=\"monolithic\"}[1m])) by (app)",
-          "legendFormat": "{{app}} (microsserviços)"
-        },
-        {
-          "expr": "sum(rate(http_server_requests_seconds_count{app=\"monolithic\"}[1m]))",
-          "legendFormat": "Monolítico"
-        }
-      ]
-    },
-    {
-      "type": "graph",
-      "title": "Taxa de Erros (%)",
-      "targets": [
-        {
-          "expr": "sum(rate(http_server_requests_seconds_count{app!=\"monolithic\",status!~\"2..\"}[1m])) by (app) / sum(rate(http_server_requests_seconds_count{app!=\"monolithic\"}[1m])) by (app) * 100",
-          "legendFormat": "{{app}} (microsserviços)"
-        },
-        {
-          "expr": "sum(rate(http_server_requests_seconds_count{app=\"monolithic\",status!~\"2..\"}[1m])) / sum(rate(http_server_requests_seconds_count{app=\"monolithic\"}[1m])) * 100",
-          "legendFormat": "Monolítico"
-        }
-      ]
-    },
-    {
-      "type": "graph",
-      "title": "Uso de CPU (%)",
-      "targets": [
-        {
-          "expr": "100 - (avg by (instance) (irate(node_cpu_seconds_total{mode=\"idle\"}[1m])) * 100)",
-          "legendFormat": "{{instance}}"
-        }
-      ]
-    },
-    {
-      "type": "graph",
-      "title": "Uso de Memória (%)",
-      "targets": [
-        {
-          "expr": "(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100",
-          "legendFormat": "{{instance}}"
-        }
-      ]
-    }
-  ]
+  "dashboard": {
+    "title": "TCC - Microsserviços vs Monolito",
+    "tags": ["tcc", "comparison"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Throughput: Microsserviços vs Monolito",
+        "type": "graph",
+        "gridPos": { "h": 10, "w": 24, "x": 0, "y": 0 },
+        "targets": [
+          {
+            "expr": "sum(rate(http_server_requests_seconds_count{job=\"apps\"}[1m]))",
+            "legendFormat": "Microsserviços (Total)",
+            "refId": "A"
+          },
+          {
+            "expr": "sum(rate(http_server_requests_seconds_count{job=\"monolito\"}[1m]))",
+            "legendFormat": "Monolito",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          { "format": "reqps", "label": "Requests/sec" },
+          { "format": "short" }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Latência P95: Comparação",
+        "type": "graph",
+        "gridPos": { "h": 10, "w": 12, "x": 0, "y": 10 },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{job=\"apps\"}[1m])) by (le))",
+            "legendFormat": "Microsserviços",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{job=\"monolito\"}[1m])) by (le))",
+            "legendFormat": "Monolito",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          { "format": "ms", "label": "Latency P95" },
+          { "format": "short" }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Uso Total de CPU",
+        "type": "graph",
+        "gridPos": { "h": 10, "w": 12, "x": 12, "y": 10 },
+        "targets": [
+          {
+            "expr": "sum(rate(process_cpu_seconds_total{job=\"apps\"}[1m])) * 100",
+            "legendFormat": "Microsserviços (Total)",
+            "refId": "A"
+          },
+          {
+            "expr": "sum(rate(process_cpu_seconds_total{job=\"monolito\"}[1m])) * 100",
+            "legendFormat": "Monolito",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          { "format": "percent", "label": "CPU %" },
+          { "format": "short" }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Uso Total de Memória",
+        "type": "graph",
+        "gridPos": { "h": 10, "w": 12, "x": 0, "y": 20 },
+        "targets": [
+          {
+            "expr": "sum(jvm_memory_used_bytes{job=\"apps\",area=\"heap\"}) / 1024 / 1024",
+            "legendFormat": "Microsserviços (Total)",
+            "refId": "A"
+          },
+          {
+            "expr": "sum(jvm_memory_used_bytes{job=\"monolito\",area=\"heap\"}) / 1024 / 1024",
+            "legendFormat": "Monolito",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          { "format": "mbytes", "label": "Memory (MB)" },
+          { "format": "short" }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Taxa de Erro (%)",
+        "type": "graph",
+        "gridPos": { "h": 10, "w": 12, "x": 12, "y": 20 },
+        "targets": [
+          {
+            "expr": "sum(rate(http_server_requests_seconds_count{job=\"apps\",status=~\"5..\"}[1m])) / sum(rate(http_server_requests_seconds_count{job=\"apps\"}[1m])) * 100",
+            "legendFormat": "Microsserviços",
+            "refId": "A"
+          },
+          {
+            "expr": "sum(rate(http_server_requests_seconds_count{job=\"monolito\",status=~\"5..\"}[1m])) / sum(rate(http_server_requests_seconds_count{job=\"monolito\"}[1m])) * 100",
+            "legendFormat": "Monolito",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          { "format": "percent", "label": "Error Rate" },
+          { "format": "short" }
+        ]
+      }
+    ],
+    "refresh": "5s",
+    "time": { "from": "now-30m", "to": "now" }
+  }
 }
