@@ -1,0 +1,5 @@
+mappings:
+  - match: "k6.*"
+    name: "k6_${1}"
+    labels:
+      metric: "${1}"

@@ -1,0 +1,257 @@
+{
+    "root_group": {
+        "name": "",
+        "path": "",
+        "id": "d41d8cd98f00b204e9800998ecf8427e",
+        "groups": {
+            "Browsing - User Feed": {
+                "checks": {},
+                "name": "Browsing - User Feed",
+                "path": "::Browsing - User Feed",
+                "id": "a4e95ecb97fb07d65e0962770d761491",
+                "groups": {}
+            },
+            "Content Creation": {
+                "name": "Content Creation",
+                "path": "::Content Creation",
+                "id": "7d1e300a6ebacc920eb198ef9ec9f961",
+                "groups": {},
+                "checks": {
+                        "user created": {
+                            "name": "user created",
+                            "path": "::Content Creation::user created",
+                            "id": "3192922bbf736790771aea10aebbe99d",
+                            "passes": 66,
+                            "fails": 0
+                        },
+                        "post created": {
+                            "passes": 79,
+                            "fails": 145,
+                            "name": "post created",
+                            "path": "::Content Creation::post created",
+                            "id": "3c4e93d864df068a2ba98dba7a69e5e5"
+                        }
+                    }
+            },
+            "Social Interactions": {
+                "id": "a62de6cb90ade04da375bcac70717f6b",
+                "groups": {},
+                "checks": {
+                        "friendship created": {
+                            "id": "f279825c9c6af93cfe6d0344db866909",
+                            "passes": 30,
+                            "fails": 0,
+                            "name": "friendship created",
+                            "path": "::Social Interactions::friendship created"
+                        },
+                        "like created": {
+                            "path": "::Social Interactions::like created",
+                            "id": "a6d4f528d2c4eba8289e52196269f16c",
+                            "passes": 19,
+                            "fails": 39,
+                            "name": "like created"
+                        },
+                        "comment created": {
+                            "name": "comment created",
+                            "path": "::Social Interactions::comment created",
+                            "id": "eb6ebd4f14c5d92c41744e1f72665dc7",
+                            "passes": 9,
+                            "fails": 19
+                        }
+                    },
+                "name": "Social Interactions",
+                "path": "::Social Interactions"
+            }
+        },
+        "checks": {}
+    },
+    "metrics": {
+        "http_req_connecting": {
+            "med": 0,
+            "max": 5.223,
+            "p(90)": 0.214,
+            "p(95)": 0.3313999999999995,
+            "avg": 0.0445567531155271,
+            "min": 0
+        },
+        "http_req_receiving": {
+            "avg": 2.1707851128326037,
+            "min": 0.079,
+            "med": 0.636,
+            "max": 510.377,
+            "p(90)": 4.2706,
+            "p(95)": 7.692199999999998
+        },
+        "iterations": {
+            "rate": 2.582796021931301,
+            "count": 1083
+        },
+        "data_sent": {
+            "count": 375295,
+            "rate": 895.0234838880033
+        },
+        "comment_creation_time": {
+            "med": 30086.5,
+            "max": 38743,
+            "p(90)": 30488.9,
+            "p(95)": 32610.549999999996,
+            "avg": 29487.321428571428,
+            "min": 3191
+        },
+        "vus_max": {
+            "min": 325,
+            "max": 325,
+            "value": 325
+        },
+        "http_req_waiting": {
+            "med": 500.698,
+            "max": 59134.973,
+            "p(90)": 39068.7716,
+            "p(95)": 43651.75119999999,
+            "avg": 16056.37332165712,
+            "min": 2.317
+        },
+        "http_req_tls_handshaking": {
+            "p(90)": 0,
+            "p(95)": 0,
+            "avg": 0,
+            "min": 0,
+            "med": 0,
+            "max": 0
+        },
+        "friendship_creation_time": {
+            "max": 1893,
+            "p(90)": 845.7000000000002,
+            "p(95)": 1239.1499999999994,
+            "avg": 349.4,
+            "min": 40,
+            "med": 161.5
+        },
+        "get_users_time": {
+            "med": 32,
+            "max": 1579,
+            "p(90)": 183.2000000000002,
+            "p(95)": 288.29999999999995,
+            "avg": 79.13991769547324,
+            "min": 6
+        },
+        "data_received": {
+            "rate": 141732.73465250374,
+            "count": 59430381
+        },
+        "http_req_blocked": {
+            "p(95)": 0.6081999999999997,
+            "avg": 0.13323880094307805,
+            "min": 0.003,
+            "med": 0.025,
+            "max": 13.94,
+            "p(90)": 0.3932000000000001
+        },
+        "iteration_duration": {
+            "avg": 42054.44460884392,
+            "min": 4812.275667,
+            "med": 33438.2785,
+            "max": 106290.45,
+            "p(90)": 69228.10130000001,
+            "p(95)": 75566.83691249999
+        },
+        "get_posts_time": {
+            "med": 30129,
+            "max": 59137,
+            "p(90)": 44996.2,
+            "p(95)": 47686.5,
+            "avg": 33620.54012345679,
+            "min": 1768
+        },
+        "http_req_duration{expected_response:true}": {
+            "med": 54.823,
+            "max": 59136.01,
+            "p(90)": 39105.475000000006,
+            "p(95)": 43777.54839999999,
+            "avg": 8842.604417684413,
+            "min": 2.495
+        },
+        "user_creation_time": {
+            "avg": 113.98484848484848,
+            "min": 16,
+            "med": 59,
+            "max": 991,
+            "p(90)": 247.00000000000003,
+            "p(95)": 406.99999999999966
+        },
+        "errors": {
+            "passes": 922,
+            "fails": 2047,
+            "thresholds": {
+                "rate<0.05": true
+            },
+            "value": 0.3105422701246211
+        },
+        "vus": {
+            "value": 2,
+            "min": 0,
+            "max": 310
+        },
+        "group_duration": {
+            "avg": 41803.56974015614,
+            "min": 4812.057333,
+            "med": 32614.556417,
+            "max": 106289.662125,
+            "p(90)": 68958.47115,
+            "p(95)": 75183.11212459997
+        },
+        "post_creation_time": {
+            "max": 48544,
+            "p(90)": 41238.9,
+            "p(95)": 46509.74999999999,
+            "avg": 32539.535714285714,
+            "min": 11799,
+            "med": 30068.5
+        },
+        "http_req_failed": {
+            "fails": 2047,
+            "passes": 922,
+            "thresholds": {
+                "rate<0.05": true
+            },
+            "value": 0.3105422701246211
+        },
+        "http_req_duration": {
+            "avg": 16058.686547995982,
+            "min": 2.495,
+            "med": 519.479,
+            "max": 59136.01,
+            "p(90)": 39069.782999999996,
+            "p(95)": 43653.92599999999,
+            "thresholds": {
+                "p(99)<2000": true,
+                "p(95)<1000": true
+            }
+        },
+        "http_req_sending": {
+            "p(95)": 0.4677999999999996,
+            "avg": 0.142441226002021,
+            "min": 0.011,
+            "med": 0.069,
+            "max": 7.562,
+            "p(90)": 0.25740000000000013
+        },
+        "checks": {
+            "passes": 203,
+            "fails": 203,
+            "value": 0.5
+        },
+        "http_reqs": {
+            "count": 2969,
+            "rate": 7.080629168157001
+        },
+        "like_creation_time": {
+            "avg": 29140.931034482757,
+            "min": 112,
+            "med": 30080,
+            "max": 35494,
+            "p(90)": 30341,
+            "p(95)": 30790
+        }
+    }
+}
