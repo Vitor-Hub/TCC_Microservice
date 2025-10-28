@@ -21,7 +21,7 @@ services:
 
   eureka-server:
     build: ./eureka-server-ms
-    container_name: micro_eureka
+    container_name: microeureka
     ports:
       - "8761:8761"
     depends_on:
@@ -36,7 +36,7 @@ services:
     ports:
       - "8765:8765"
     environment:
-      - EUREKA_SERVER=http://micro_eureka:8761/eureka
+      - EUREKA_SERVER=http://microeureka:8761/eureka
     depends_on:
       - eureka-server
     networks:
