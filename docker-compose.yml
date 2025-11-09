@@ -1,0 +1,185 @@
+version: '3.8'
+
+services:
+  # ============ INFRAESTRUTURA ============
+  mysql:
+    image: mysql:8.0
+    container_name: tcc_mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: microsservice_db
+      MYSQL_USER: tcc
+      MYSQL_PASSWORD: tcc
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 30s
+    networks:
+      - tcc-network
+    restart: unless-stopped
+
+  eureka-server:
+    build: ./eureka-server-ms
+    container_name: microeureka
+    ports:
+      - "8761:8761"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8761/actuator/health | grep UP || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 60s
+    networks:
+      - tcc-network
+    restart: unless-stopped
+
+  gateway-service:
+    build: ./gateway-service-ms
+    container_name: micro_api_gateway
+    ports:
+      - "8765:8765"
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://microeureka:8761/eureka/
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8765/actuator/health | grep UP || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    networks:
+      - tcc-network
+    restart: unless-stopped
+
+  # ============ MICROSERVIÇOS ============
+  user-ms:
+    build: ./user-ms
+    container_name: micro_user_service
+    ports:
+      - "18081:18081"
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://microeureka:8761/eureka/
+      - SPRING_DATASOURCE_URL=jdbc:mysql://tcc_mysql:3306/microsservice_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    depends_on:
+      mysql:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:18081/actuator/health | grep UP || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
+    networks:
+      - tcc-network
+    restart: unless-stopped
+
+  post-ms:
+    build: ./post-ms
+    container_name: micro_post_service
+    ports:
+      - "18082:18082"
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://microeureka:8761/eureka/
+      - SPRING_DATASOURCE_URL=jdbc:mysql://tcc_mysql:3306/microsservice_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    depends_on:
+      mysql:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:18082/actuator/health | grep UP || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
+    networks:
+      - tcc-network
+    restart: unless-stopped
+
+  comment-ms:
+    build: ./comment-ms
+    container_name: micro_comment_service
+    ports:
+      - "18083:18083"
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://microeureka:8761/eureka/
+      - SPRING_DATASOURCE_URL=jdbc:mysql://tcc_mysql:3306/microsservice_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    depends_on:
+      mysql:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:18083/actuator/health | grep UP || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
+    networks:
+      - tcc-network
+    restart: unless-stopped
+
+  friendship-ms:
+    build: ./friendship-ms
+    container_name: micro_friendship_service
+    ports:
+      - "18084:18084"
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://microeureka:8761/eureka/
+      - SPRING_DATASOURCE_URL=jdbc:mysql://tcc_mysql:3306/microsservice_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    depends_on:
+      mysql:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:18084/actuator/health | grep UP || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
+    networks:
+      - tcc-network
+    restart: unless-stopped
+
+  like-ms:
+    build: ./like-ms
+    container_name: micro_like_service
+    ports:
+      - "18085:18085"
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://microeureka:8761/eureka/
+      - SPRING_DATASOURCE_URL=jdbc:mysql://tcc_mysql:3306/microsservice_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    depends_on:
+      mysql:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:18084/actuator/health | grep UP || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
+    networks:
+      - tcc-network
+    restart: unless-stopped
+
+networks:
+  tcc-network:
+    driver: bridge
+    name: tcc-network
+
+volumes:
+  mysql_data:
+    name: tcc_mysql_data
