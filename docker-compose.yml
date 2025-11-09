@@ -1,185 +1,216 @@
-version: '3.8'
+version: "3.8"
 
 services:
-  # ============ INFRAESTRUTURA ============
-  mysql:
-    image: mysql:8.0
-    container_name: tcc_mysql
-    environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: microsservice_db
-      MYSQL_USER: tcc
-      MYSQL_PASSWORD: tcc
-    ports:
-      - "3306:3306"
-    volumes:
-      - mysql_data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-      start_period: 30s
-    networks:
-      - tcc-network
-    restart: unless-stopped
-
+  # ==========================================================
+  # 🛰️ EUREKA SERVER
+  # ==========================================================
   eureka-server:
-    build: ./eureka-server-ms
+    image: microsservice-eureka-server
     container_name: microeureka
+    build:
+      context: ./eureka-server-ms
     ports:
       - "8761:8761"
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8761/actuator/health | grep UP || exit 1"]
+      test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
       interval: 10s
       timeout: 5s
-      retries: 15
-      start_period: 60s
+      retries: 5
     networks:
-      - tcc-network
-    restart: unless-stopped
+      - mstcc-net
 
+  # ==========================================================
+  # 🌐 GATEWAY
+  # ==========================================================
   gateway-service:
-    build: ./gateway-service-ms
+    image: microsservice-gateway-service
     container_name: micro_api_gateway
+    build:
+      context: ./gateway-service-ms
     ports:
       - "8765:8765"
-    environment:
-      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://microeureka:8761/eureka/
     depends_on:
-      eureka-server:
-        condition: service_healthy
+      - eureka-server
+    environment:
+      - SPRING_PROFILES_ACTIVE=default
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8765/actuator/health | grep UP || exit 1"]
+      test: ["CMD", "curl", "-f", "http://localhost:8765/actuator/health"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 40s
     networks:
-      - tcc-network
-    restart: unless-stopped
+      - mstcc-net
 
-  # ============ MICROSERVIÇOS ============
+  # ==========================================================
+  # 👤 USER SERVICE
+  # ==========================================================
   user-ms:
-    build: ./user-ms
+    image: microsservice-user-ms
     container_name: micro_user_service
+    build:
+      context: ./user-ms
     ports:
       - "18081:18081"
-    environment:
-      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://microeureka:8761/eureka/
-      - SPRING_DATASOURCE_URL=jdbc:mysql://tcc_mysql:3306/microsservice_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
     depends_on:
-      mysql:
-        condition: service_healthy
-      eureka-server:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:18081/actuator/health | grep UP || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 90s
+      - eureka-server
+      - user-ms-db
+    environment:
+      - SPRING_PROFILES_ACTIVE=default
     networks:
-      - tcc-network
-    restart: unless-stopped
+      - mstcc-net
 
+  user-ms-db:
+    image: postgres:15
+    container_name: user-ms-db
+    environment:
+      POSTGRES_DB: userdb
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: user123
+    ports:
+      - "5433:5432"
+    volumes:
+      - user_ms_data:/var/lib/postgresql/data
+    networks:
+      - mstcc-net
+
+  # ==========================================================
+  # 📝 POST SERVICE
+  # ==========================================================
   post-ms:
-    build: ./post-ms
+    image: microsservice-post-ms
     container_name: micro_post_service
+    build:
+      context: ./post-ms
     ports:
       - "18082:18082"
-    environment:
-      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://microeureka:8761/eureka/
-      - SPRING_DATASOURCE_URL=jdbc:mysql://tcc_mysql:3306/microsservice_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
     depends_on:
-      mysql:
-        condition: service_healthy
-      eureka-server:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:18082/actuator/health | grep UP || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 90s
+      - eureka-server
+      - post-ms-db
+    environment:
+      - SPRING_PROFILES_ACTIVE=default
     networks:
-      - tcc-network
-    restart: unless-stopped
+      - mstcc-net
 
+  post-ms-db:
+    image: postgres:15
+    container_name: post-ms-db
+    environment:
+      POSTGRES_DB: postdb
+      POSTGRES_USER: post
+      POSTGRES_PASSWORD: post123
+    ports:
+      - "5434:5432"
+    volumes:
+      - post_ms_data:/var/lib/postgresql/data
+    networks:
+      - mstcc-net
+
+  # ==========================================================
+  # 💬 COMMENT SERVICE
+  # ==========================================================
   comment-ms:
-    build: ./comment-ms
+    image: microsservice-comment-ms
     container_name: micro_comment_service
+    build:
+      context: ./comment-ms
     ports:
       - "18083:18083"
-    environment:
-      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://microeureka:8761/eureka/
-      - SPRING_DATASOURCE_URL=jdbc:mysql://tcc_mysql:3306/microsservice_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
     depends_on:
-      mysql:
-        condition: service_healthy
-      eureka-server:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:18083/actuator/health | grep UP || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 90s
+      - eureka-server
+      - comment-ms-db
+    environment:
+      - SPRING_PROFILES_ACTIVE=default
     networks:
-      - tcc-network
-    restart: unless-stopped
+      - mstcc-net
 
-  friendship-ms:
-    build: ./friendship-ms
-    container_name: micro_friendship_service
+  comment-ms-db:
+    image: postgres:15
+    container_name: comment-ms-db
+    environment:
+      POSTGRES_DB: commentdb
+      POSTGRES_USER: comment
+      POSTGRES_PASSWORD: comment123
     ports:
-      - "18084:18084"
-    environment:
-      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://microeureka:8761/eureka/
-      - SPRING_DATASOURCE_URL=jdbc:mysql://tcc_mysql:3306/microsservice_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
-    depends_on:
-      mysql:
-        condition: service_healthy
-      eureka-server:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:18084/actuator/health | grep UP || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 90s
+      - "5435:5432"
+    volumes:
+      - comment_ms_data:/var/lib/postgresql/data
     networks:
-      - tcc-network
-    restart: unless-stopped
+      - mstcc-net
 
+  # ==========================================================
+  # 👍 LIKE SERVICE
+  # ==========================================================
   like-ms:
-    build: ./like-ms
+    image: microsservice-like-ms
     container_name: micro_like_service
+    build:
+      context: ./like-ms
     ports:
       - "18085:18085"
-    environment:
-      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://microeureka:8761/eureka/
-      - SPRING_DATASOURCE_URL=jdbc:mysql://tcc_mysql:3306/microsservice_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
     depends_on:
-      mysql:
-        condition: service_healthy
-      eureka-server:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:18084/actuator/health | grep UP || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 90s
+      - eureka-server
+      - like-ms-db
+    environment:
+      - SPRING_PROFILES_ACTIVE=default
     networks:
-      - tcc-network
-    restart: unless-stopped
+      - mstcc-net
+
+  like-ms-db:
+    image: postgres:15
+    container_name: like-ms-db
+    environment:
+      POSTGRES_DB: likedb
+      POSTGRES_USER: like
+      POSTGRES_PASSWORD: like123
+    ports:
+      - "5436:5432"
+    volumes:
+      - like_ms_data:/var/lib/postgresql/data
+    networks:
+      - mstcc-net
+
+  # ==========================================================
+  # 🤝 FRIENDSHIP SERVICE
+  # ==========================================================
+  friendship-ms:
+    image: microsservice-friendship-ms
+    container_name: micro_friendship_service
+    build:
+      context: ./friendship-ms
+    ports:
+      - "18084:18084"
+    depends_on:
+      - eureka-server
+      - friendship-ms-db
+    environment:
+      - SPRING_PROFILES_ACTIVE=default
+    networks:
+      - mstcc-net
+
+  friendship-ms-db:
+    image: postgres:15
+    container_name: friendship-ms-db
+    environment:
+      POSTGRES_DB: friendshipdb
+      POSTGRES_USER: friendship
+      POSTGRES_PASSWORD: friendship123
+    ports:
+      - "5437:5432"
+    volumes:
+      - friendship_ms_data:/var/lib/postgresql/data
+    networks:
+      - mstcc-net
+
+# ==========================================================
+# 🗂️ VOLUMES & NETWORK
+# ==========================================================
+volumes:
+  user_ms_data:
+  post_ms_data:
+  comment_ms_data:
+  like_ms_data:
+  friendship_ms_data:
 
 networks:
-  tcc-network:
+  mstcc-net:
     driver: bridge
-    name: tcc-network
-
-volumes:
-  mysql_data:
-    name: tcc_mysql_data
