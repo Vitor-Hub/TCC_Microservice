@@ -1,0 +1,98 @@
+version: "3.8"
+
+services:
+  user-ms-db:
+    image: postgres:15
+    container_name: mstcc_user_db
+    environment:
+      POSTGRES_DB: userdb
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: user123
+    ports: ["5433:5432"]
+    volumes:
+      - ./data/user:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d userdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  post-ms-db:
+    image: postgres:15
+    container_name: mstcc_post_db
+    environment:
+      POSTGRES_DB: postdb
+      POSTGRES_USER: post
+      POSTGRES_PASSWORD: post123
+    ports: ["5434:5432"]
+    volumes:
+      - ./data/post:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U post -d postdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  comment-ms-db:
+    image: postgres:15
+    container_name: mstcc_comment_db
+    environment:
+      POSTGRES_DB: commentdb
+      POSTGRES_USER: comment
+      POSTGRES_PASSWORD: comment123
+    ports: ["5435:5432"]
+    volumes:
+      - ./data/comment:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U comment -d commentdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  like-ms-db:
+    image: postgres:15
+    container_name: mstcc_like_db
+    environment:
+      POSTGRES_DB: likedb
+      POSTGRES_USER: like
+      POSTGRES_PASSWORD: like123
+    ports: ["5436:5432"]
+    volumes:
+      - ./data/like:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U like -d likedb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  friendship-ms-db:
+    image: postgres:15
+    container_name: mstcc_friendship_db
+    environment:
+      POSTGRES_DB: friendshipdb
+      POSTGRES_USER: friendship
+      POSTGRES_PASSWORD: friendship123
+    ports: ["5437:5432"]
+    volumes:
+      - ./data/friendship:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U friendship -d friendshipdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  gateway-service-ms-db:
+    image: postgres:15
+    container_name: mstcc_gateway_db
+    environment:
+      POSTGRES_DB: gatewaydb
+      POSTGRES_USER: gateway
+      POSTGRES_PASSWORD: gateway123
+    ports: ["5438:5432"]
+    volumes:
+      - ./data/gateway:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gateway -d gatewaydb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5

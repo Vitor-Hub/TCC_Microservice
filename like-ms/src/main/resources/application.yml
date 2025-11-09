@@ -1,0 +1,73 @@
+spring:
+  application:
+    name: like-ms
+  datasource:
+    url: jdbc:postgresql://like-ms-db:5432/likedb
+    username: like
+    password: like123
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  cloud:
+    openfeign:
+      client:
+        config:
+          default:
+            connectTimeout: 2000
+            readTimeout: 4000
+    loadbalancer:
+      enabled: true
+
+server:
+  port: 18085
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://microeureka:8761/eureka/
+    healthcheck:
+      enabled: true
+  instance:
+    prefer-ip-address: false
+    hostname: micro_like_service
+    instance-id: ${spring.application.name}:${spring.application.instance-id:${random.value}}
+    lease-renewal-interval-in-seconds: 10
+    lease-expiration-duration-in-seconds: 30
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: always
+    prometheus:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+feign:
+  circuitbreaker:
+    enabled: true
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      default:
+        slidingWindowSize: 20
+        minimumNumberOfCalls: 10
+        permittedNumberOfCallsInHalfOpenState: 5
+        waitDurationInOpenState: 10s
+  retry:
+    instances:
+      default:
+        maxAttempts: 2
+        waitDuration: 200ms
