@@ -2,19 +2,25 @@ version: "3.8"
 
 services:
   # ==========================================================
-  # 🛰️ EUREKA SERVER
+  # 🗄️ POSTGRESQL DATABASES
   # ==========================================================
-  eureka-server:
-    image: microsservice-eureka-server
-    container_name: microeureka
-    build:
-      context: ./eureka-server-ms
+  
+  # User Service Database
+  user-ms-db:
+    image: postgres:15-alpine
+    container_name: user_ms_db
+    restart: unless-stopped
     ports:
-      - "8761:8761"
+      - "5433:5432"
     environment:
-      - JAVA_OPTS=-Xmx384m -Xms256m
+      POSTGRES_DB: userdb
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: user123
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8"
+    volumes:
+      - user_db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
+      test: ["CMD-SHELL", "pg_isready -U user -d userdb"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -23,28 +29,26 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
-        reservations:
           memory: 256M
+        reservations:
+          memory: 128M
 
-  # ==========================================================
-  # 🌐 GATEWAY
-  # ==========================================================
-  gateway-service:
-    image: microsservice-gateway-service
-    container_name: micro_api_gateway
-    build:
-      context: ./gateway-service-ms
+  # Post Service Database
+  post-ms-db:
+    image: postgres:15-alpine
+    container_name: post_ms_db
+    restart: unless-stopped
     ports:
-      - "8765:8765"
-    depends_on:
-      eureka-server:
-        condition: service_healthy
+      - "5434:5432"
     environment:
-      - SPRING_PROFILES_ACTIVE=default
-      - JAVA_OPTS=-Xmx384m -Xms256m
+      POSTGRES_DB: postdb
+      POSTGRES_USER: post
+      POSTGRES_PASSWORD: post123
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8"
+    volumes:
+      - post_db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8765/actuator/health"]
+      test: ["CMD-SHELL", "pg_isready -U post -d postdb"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -53,149 +57,108 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
-        reservations:
           memory: 256M
+        reservations:
+          memory: 128M
 
-  # ==========================================================
-  # 👤 USER SERVICE
-  # ==========================================================
-  user-ms:
-    image: microsservice-user-ms
-    container_name: micro_user_service
-    build:
-      context: ./user-ms
+  # Comment Service Database
+  comment-ms-db:
+    image: postgres:15-alpine
+    container_name: comment_ms_db
+    restart: unless-stopped
     ports:
-      - "18081:18081"
-    depends_on:
-      eureka-server:
-        condition: service_healthy
+      - "5435:5432"
     environment:
-      - SPRING_PROFILES_ACTIVE=default
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://user-ms-db:5432/userdb
-      - SPRING_DATASOURCE_USERNAME=user
-      - SPRING_DATASOURCE_PASSWORD=user123
-      - JAVA_OPTS=-Xmx384m -Xms256m
+      POSTGRES_DB: commentdb
+      POSTGRES_USER: comment
+      POSTGRES_PASSWORD: comment123
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8"
+    volumes:
+      - comment_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U comment -d commentdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - mstcc-net
     deploy:
       resources:
         limits:
-          memory: 512M
-        reservations:
           memory: 256M
+        reservations:
+          memory: 128M
 
-  # ==========================================================
-  # 📝 POST SERVICE
-  # ==========================================================
-  post-ms:
-    image: microsservice-post-ms
-    container_name: micro_post_service
-    build:
-      context: ./post-ms
+  # Like Service Database
+  like-ms-db:
+    image: postgres:15-alpine
+    container_name: like_ms_db
+    restart: unless-stopped
     ports:
-      - "18082:18082"
-    depends_on:
-      eureka-server:
-        condition: service_healthy
+      - "5436:5432"
     environment:
-      - SPRING_PROFILES_ACTIVE=default
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://post-ms-db:5432/postdb
-      - SPRING_DATASOURCE_USERNAME=post
-      - SPRING_DATASOURCE_PASSWORD=post123
-      - JAVA_OPTS=-Xmx384m -Xms256m
+      POSTGRES_DB: likedb
+      POSTGRES_USER: like
+      POSTGRES_PASSWORD: like123
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8"
+    volumes:
+      - like_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U like -d likedb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - mstcc-net
     deploy:
       resources:
         limits:
-          memory: 512M
-        reservations:
           memory: 256M
+        reservations:
+          memory: 128M
 
-  # ==========================================================
-  # 💬 COMMENT SERVICE
-  # ==========================================================
-  comment-ms:
-    image: microsservice-comment-ms
-    container_name: micro_comment_service
-    build:
-      context: ./comment-ms
+  # Friendship Service Database
+  friendship-ms-db:
+    image: postgres:15-alpine
+    container_name: friendship_ms_db
+    restart: unless-stopped
     ports:
-      - "18083:18083"
-    depends_on:
-      eureka-server:
-        condition: service_healthy
+      - "5437:5432"
     environment:
-      - SPRING_PROFILES_ACTIVE=default
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://comment-ms-db:5432/commentdb
-      - SPRING_DATASOURCE_USERNAME=comment
-      - SPRING_DATASOURCE_PASSWORD=comment123
-      - JAVA_OPTS=-Xmx384m -Xms256m
+      POSTGRES_DB: friendshipdb
+      POSTGRES_USER: friendship
+      POSTGRES_PASSWORD: friendship123
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8"
+    volumes:
+      - friendship_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U friendship -d friendshipdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - mstcc-net
     deploy:
       resources:
         limits:
-          memory: 512M
-        reservations:
           memory: 256M
+        reservations:
+          memory: 128M
 
-  # ==========================================================
-  # 👍 LIKE SERVICE
-  # ==========================================================
-  like-ms:
-    image: microsservice-like-ms
-    container_name: micro_like_service
-    build:
-      context: ./like-ms
-    ports:
-      - "18085:18085"
-    depends_on:
-      eureka-server:
-        condition: service_healthy
-    environment:
-      - SPRING_PROFILES_ACTIVE=default
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://like-ms-db:5432/likedb
-      - SPRING_DATASOURCE_USERNAME=like
-      - SPRING_DATASOURCE_PASSWORD=like123
-      - JAVA_OPTS=-Xmx384m -Xms256m
-    networks:
-      - mstcc-net
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-        reservations:
-          memory: 256M
-
-  # ==========================================================
-  # 🤝 FRIENDSHIP SERVICE
-  # ==========================================================
-  friendship-ms:
-    image: microsservice-friendship-ms
-    container_name: micro_friendship_service
-    build:
-      context: ./friendship-ms
-    ports:
-      - "18084:18084"
-    depends_on:
-      eureka-server:
-        condition: service_healthy
-    environment:
-      - SPRING_PROFILES_ACTIVE=default
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://friendship-ms-db:5432/friendshipdb
-      - SPRING_DATASOURCE_USERNAME=friendship
-      - SPRING_DATASOURCE_PASSWORD=friendship123
-      - JAVA_OPTS=-Xmx384m -Xms256m
-    networks:
-      - mstcc-net
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-        reservations:
-          memory: 256M
+# ==========================================================
+# 📦 VOLUMES
+# ==========================================================
+volumes:
+  user_db_data:
+    driver: local
+  post_db_data:
+    driver: local
+  comment_db_data:
+    driver: local
+  like_db_data:
+    driver: local
+  friendship_db_data:
+    driver: local
 
 # ==========================================================
 # 🗂️ NETWORK

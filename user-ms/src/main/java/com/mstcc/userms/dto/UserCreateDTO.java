@@ -6,14 +6,14 @@ public class UserCreateDTO {
     
     private String name;
     private String email;
-    private String bio;
+    private String password;
 
     public UserCreateDTO() {}
 
-    public UserCreateDTO(String name, String email, String bio) {
+    public UserCreateDTO(String name, String email, String password) {
         this.name = name;
         this.email = email;
-        this.bio = bio;
+        this.password = password;
     }
 
     public String getName() {
@@ -32,19 +32,19 @@ public class UserCreateDTO {
         this.email = email;
     }
 
-    public String getBio() {
-        return bio;
+    public String getPassword() {
+        return password;
     }
 
-    public void setBio(String bio) {
-        this.bio = bio;
+    public void setPassword(String password) {
+        this.password = password;
     }
 
     public User toEntity() {
         User user = new User();
         user.setUsername(this.name);
         user.setEmail(this.email);
-        user.setPassword(this.bio != null ? this.bio : "");
+        user.setPassword(this.password);
         return user;
     }
 
@@ -52,7 +52,7 @@ public class UserCreateDTO {
         UserCreateDTO dto = new UserCreateDTO();
         dto.setName(user.getUsername());
         dto.setEmail(user.getEmail());
-        dto.setBio(user.getPassword());
+        dto.setPassword(user.getPassword());
         return dto;
     }
 }

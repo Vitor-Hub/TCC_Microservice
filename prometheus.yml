@@ -1,0 +1,179 @@
+# Prometheus Configuration for Microservices TCC
+# Otimizado para coleta de métricas de Spring Boot Actuator
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  scrape_timeout: 10s
+  external_labels:
+    environment: 'tcc-microservices'
+    cluster: 'local-docker'
+
+# Alertmanager configuration (opcional)
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets: ['alertmanager:9093']
+
+# Regras de alertas (opcional)
+# rule_files:
+#   - "alerts/*.yml"
+
+# Configuração de scrape
+scrape_configs:
+  # ========================================
+  # PROMETHEUS SELF-MONITORING
+  # ========================================
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          service: 'prometheus'
+          tier: 'monitoring'
+
+  # ========================================
+  # EUREKA SERVER
+  # ========================================
+  - job_name: 'eureka-server'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 15s
+    static_configs:
+      - targets: ['eureka-server:8761']
+        labels:
+          application: 'eureka-server'
+          service: 'discovery'
+          tier: 'infrastructure'
+
+  # ========================================
+  # API GATEWAY
+  # ========================================
+  - job_name: 'gateway-service'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['gateway-service:8765']
+        labels:
+          application: 'gateway-service'
+          service: 'gateway'
+          tier: 'infrastructure'
+
+  # ========================================
+  # USER MICROSERVICE
+  # ========================================
+  - job_name: 'user-service'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['user-ms:18081']
+        labels:
+          application: 'user-ms'
+          service: 'user'
+          tier: 'business'
+          domain: 'identity'
+
+  # ========================================
+  # POST MICROSERVICE
+  # ========================================
+  - job_name: 'post-service'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['post-ms:18082']
+        labels:
+          application: 'post-ms'
+          service: 'post'
+          tier: 'business'
+          domain: 'content'
+
+  # ========================================
+  # COMMENT MICROSERVICE
+  # ========================================
+  - job_name: 'comment-service'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['comment-ms:18083']
+        labels:
+          application: 'comment-ms'
+          service: 'comment'
+          tier: 'business'
+          domain: 'engagement'
+
+  # ========================================
+  # LIKE MICROSERVICE
+  # ========================================
+  - job_name: 'like-service'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['like-ms:18085']
+        labels:
+          application: 'like-ms'
+          service: 'like'
+          tier: 'business'
+          domain: 'engagement'
+
+  # ========================================
+  # FRIENDSHIP MICROSERVICE
+  # ========================================
+  - job_name: 'friendship-service'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['friendship-ms:18084']
+        labels:
+          application: 'friendship-ms'
+          service: 'friendship'
+          tier: 'business'
+          domain: 'social'
+
+  # ========================================
+  # POSTGRESQL EXPORTERS (opcional)
+  # Descomente se adicionar postgres_exporter
+  # ========================================
+  # - job_name: 'postgresql-user-db'
+  #   static_configs:
+  #     - targets: ['postgres-exporter-user:9187']
+  #       labels:
+  #         database: 'userdb'
+  #         service: 'user'
+
+  # - job_name: 'postgresql-post-db'
+  #   static_configs:
+  #     - targets: ['postgres-exporter-post:9187']
+  #       labels:
+  #         database: 'postdb'
+  #         service: 'post'
+
+  # ========================================
+  # DOCKER CONTAINER METRICS (opcional)
+  # Descomente se adicionar cAdvisor
+  # ========================================
+  # - job_name: 'cadvisor'
+  #   scrape_interval: 15s
+  #   static_configs:
+  #     - targets: ['cadvisor:8080']
+  #       labels:
+  #         tier: 'infrastructure'
+
+  # ========================================
+  # NODE EXPORTER (opcional)
+  # Para métricas do host
+  # ========================================
+  # - job_name: 'node-exporter'
+  #   static_configs:
+  #     - targets: ['node-exporter:9100']
+  #       labels:
+  #         tier: 'infrastructure'
+
+# ========================================
+# REMOTE WRITE (para long-term storage)
+# ========================================
+# remote_write:
+#   - url: "http://long-term-storage:9090/api/v1/write"
+#     queue_config:
+#       capacity: 10000
+#       max_shards: 5
+#       min_shards: 1
+#       max_samples_per_send: 5000
+#       batch_send_deadline: 5s
