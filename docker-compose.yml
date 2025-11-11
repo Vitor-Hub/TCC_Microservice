@@ -11,6 +11,8 @@ services:
       context: ./eureka-server-ms
     ports:
       - "8761:8761"
+    environment:
+      - JAVA_OPTS=-Xmx384m -Xms256m
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
       interval: 10s
@@ -18,6 +20,12 @@ services:
       retries: 5
     networks:
       - mstcc-net
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
 
   # ==========================================================
   # 🌐 GATEWAY
@@ -30,9 +38,11 @@ services:
     ports:
       - "8765:8765"
     depends_on:
-      - eureka-server
+      eureka-server:
+        condition: service_healthy
     environment:
       - SPRING_PROFILES_ACTIVE=default
+      - JAVA_OPTS=-Xmx384m -Xms256m
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8765/actuator/health"]
       interval: 10s
@@ -40,6 +50,12 @@ services:
       retries: 5
     networks:
       - mstcc-net
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
 
   # ==========================================================
   # 👤 USER SERVICE
@@ -52,26 +68,22 @@ services:
     ports:
       - "18081:18081"
     depends_on:
-      - eureka-server
-      - user-ms-db
+      eureka-server:
+        condition: service_healthy
     environment:
       - SPRING_PROFILES_ACTIVE=default
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://user-ms-db:5432/userdb
+      - SPRING_DATASOURCE_USERNAME=user
+      - SPRING_DATASOURCE_PASSWORD=user123
+      - JAVA_OPTS=-Xmx384m -Xms256m
     networks:
       - mstcc-net
-
-  user-ms-db:
-    image: postgres:15
-    container_name: user-ms-db
-    environment:
-      POSTGRES_DB: userdb
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: user123
-    ports:
-      - "5433:5432"
-    volumes:
-      - user_ms_data:/var/lib/postgresql/data
-    networks:
-      - mstcc-net
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
 
   # ==========================================================
   # 📝 POST SERVICE
@@ -84,26 +96,22 @@ services:
     ports:
       - "18082:18082"
     depends_on:
-      - eureka-server
-      - post-ms-db
+      eureka-server:
+        condition: service_healthy
     environment:
       - SPRING_PROFILES_ACTIVE=default
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://post-ms-db:5432/postdb
+      - SPRING_DATASOURCE_USERNAME=post
+      - SPRING_DATASOURCE_PASSWORD=post123
+      - JAVA_OPTS=-Xmx384m -Xms256m
     networks:
       - mstcc-net
-
-  post-ms-db:
-    image: postgres:15
-    container_name: post-ms-db
-    environment:
-      POSTGRES_DB: postdb
-      POSTGRES_USER: post
-      POSTGRES_PASSWORD: post123
-    ports:
-      - "5434:5432"
-    volumes:
-      - post_ms_data:/var/lib/postgresql/data
-    networks:
-      - mstcc-net
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
 
   # ==========================================================
   # 💬 COMMENT SERVICE
@@ -116,26 +124,22 @@ services:
     ports:
       - "18083:18083"
     depends_on:
-      - eureka-server
-      - comment-ms-db
+      eureka-server:
+        condition: service_healthy
     environment:
       - SPRING_PROFILES_ACTIVE=default
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://comment-ms-db:5432/commentdb
+      - SPRING_DATASOURCE_USERNAME=comment
+      - SPRING_DATASOURCE_PASSWORD=comment123
+      - JAVA_OPTS=-Xmx384m -Xms256m
     networks:
       - mstcc-net
-
-  comment-ms-db:
-    image: postgres:15
-    container_name: comment-ms-db
-    environment:
-      POSTGRES_DB: commentdb
-      POSTGRES_USER: comment
-      POSTGRES_PASSWORD: comment123
-    ports:
-      - "5435:5432"
-    volumes:
-      - comment_ms_data:/var/lib/postgresql/data
-    networks:
-      - mstcc-net
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
 
   # ==========================================================
   # 👍 LIKE SERVICE
@@ -148,26 +152,22 @@ services:
     ports:
       - "18085:18085"
     depends_on:
-      - eureka-server
-      - like-ms-db
+      eureka-server:
+        condition: service_healthy
     environment:
       - SPRING_PROFILES_ACTIVE=default
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://like-ms-db:5432/likedb
+      - SPRING_DATASOURCE_USERNAME=like
+      - SPRING_DATASOURCE_PASSWORD=like123
+      - JAVA_OPTS=-Xmx384m -Xms256m
     networks:
       - mstcc-net
-
-  like-ms-db:
-    image: postgres:15
-    container_name: like-ms-db
-    environment:
-      POSTGRES_DB: likedb
-      POSTGRES_USER: like
-      POSTGRES_PASSWORD: like123
-    ports:
-      - "5436:5432"
-    volumes:
-      - like_ms_data:/var/lib/postgresql/data
-    networks:
-      - mstcc-net
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
 
   # ==========================================================
   # 🤝 FRIENDSHIP SERVICE
@@ -180,37 +180,26 @@ services:
     ports:
       - "18084:18084"
     depends_on:
-      - eureka-server
-      - friendship-ms-db
+      eureka-server:
+        condition: service_healthy
     environment:
       - SPRING_PROFILES_ACTIVE=default
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://friendship-ms-db:5432/friendshipdb
+      - SPRING_DATASOURCE_USERNAME=friendship
+      - SPRING_DATASOURCE_PASSWORD=friendship123
+      - JAVA_OPTS=-Xmx384m -Xms256m
     networks:
       - mstcc-net
-
-  friendship-ms-db:
-    image: postgres:15
-    container_name: friendship-ms-db
-    environment:
-      POSTGRES_DB: friendshipdb
-      POSTGRES_USER: friendship
-      POSTGRES_PASSWORD: friendship123
-    ports:
-      - "5437:5432"
-    volumes:
-      - friendship_ms_data:/var/lib/postgresql/data
-    networks:
-      - mstcc-net
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
 
 # ==========================================================
-# 🗂️ VOLUMES & NETWORK
+# 🗂️ NETWORK
 # ==========================================================
-volumes:
-  user_ms_data:
-  post_ms_data:
-  comment_ms_data:
-  like_ms_data:
-  friendship_ms_data:
-
 networks:
   mstcc-net:
     driver: bridge

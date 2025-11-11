@@ -1,5 +1,6 @@
 package com.mstcc.userms.controllers;
 
+import com.mstcc.userms.dto.UserCreateDTO;
 import com.mstcc.userms.entities.User;
 import com.mstcc.userms.services.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,7 +34,8 @@ public class UserController {
     }
 
     @PostMapping
-    public ResponseEntity<User> createUser(@RequestBody User user) {
+    public ResponseEntity<User> createUser(@RequestBody UserCreateDTO userDto) {
+        User user = userDto.toEntity();
         User savedUser = userService.saveUser(user);
         return ResponseEntity.status(HttpStatus.CREATED).body(savedUser);
     }
@@ -45,9 +47,10 @@ public class UserController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<User> updateUser(@PathVariable Long id, @RequestBody User userDetails) {
+    public ResponseEntity<User> updateUser(@PathVariable Long id, @RequestBody UserCreateDTO userDto) {
+        User userDetails = userDto.toEntity();
         return userService.updateUser(id, userDetails)
-                .map(updatedUser -> ResponseEntity.ok().body(updatedUser))
+                .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 }
