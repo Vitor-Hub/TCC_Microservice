@@ -50,7 +50,7 @@ eureka:
       enabled: true
   instance:
     prefer-ip-address: false
-    hostname: micro_api_gateway
+    hostname: micro-api-gateway
     lease-renewal-interval-in-seconds: 10
     lease-expiration-duration-in-seconds: 30
 

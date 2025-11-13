@@ -161,7 +161,7 @@ docker ps
 docker-compose logs -f
 
 # Apenas um serviço
-docker logs -f micro_user_service
+docker logs -f micro-user-service
 ```
 
 ### Testar Endpoints Manualmente
@@ -205,7 +205,7 @@ open http://localhost:3000
 
 ```bash
 # Ver logs
-docker logs micro_user_service
+docker logs micro-user-service
 
 # Aumentar memória do Docker
 # Docker Desktop → Settings → Resources → Memory: 6-8GB

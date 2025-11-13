@@ -1,85 +1,99 @@
+# Prometheus Configuration for Microservices TCC
 global:
-  scrape_interval: 5s
-  evaluation_interval: 5s
-  scrape_timeout: 4s
-  
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  scrape_timeout: 10s
   external_labels:
-    monitor: 'tcc-microservices'
-    environment: 'development'
+    environment: 'tcc-microservices'
+    cluster: 'local-docker'
 
-# Configuração dos endpoints a serem monitorados
 scrape_configs:
-  # ========================================
-  # MICROSSERVIÇOS - Spring Boot Actuator
-  # ========================================
-  
-  - job_name: 'user-service'
-    metrics_path: '/actuator/prometheus'
-    static_configs:
-      - targets: ['micro_user_service:18081']
-        labels:
-          service: 'user-ms'
-          tier: 'backend'
-    
-  - job_name: 'post-service'
-    metrics_path: '/actuator/prometheus'
-    static_configs:
-      - targets: ['micro_post_service:18082']
-        labels:
-          service: 'post-ms'
-          tier: 'backend'
-    
-  - job_name: 'comment-service'
-    metrics_path: '/actuator/prometheus'
-    static_configs:
-      - targets: ['micro_comment_service:18083']
-        labels:
-          service: 'comment-ms'
-          tier: 'backend'
-    
-  - job_name: 'friendship-service'
-    metrics_path: '/actuator/prometheus'
-    static_configs:
-      - targets: ['micro_friendship_service:18084']
-        labels:
-          service: 'friendship-ms'
-          tier: 'backend'
-    
-  - job_name: 'like-service'
-    metrics_path: '/actuator/prometheus'
-    static_configs:
-      - targets: ['micro_like_service:18085']
-        labels:
-          service: 'like-ms'
-          tier: 'backend'
-    
-  - job_name: 'gateway-service'
-    metrics_path: '/actuator/prometheus'
-    static_configs:
-      - targets: ['micro_api_gateway:8765']
-        labels:
-          service: 'gateway-ms'
-          tier: 'gateway'
-  
-  # ========================================
-  # EUREKA SERVER
-  # ========================================
-  
-  - job_name: 'eureka-server'
-    metrics_path: '/actuator/prometheus'
-    static_configs:
-      - targets: ['microeureka:8761']
-        labels:
-          service: 'eureka'
-          tier: 'infrastructure'
-  
-  # ========================================
-  # PROMETHEUS (Self-monitoring)
-  # ========================================
-  
+  # PROMETHEUS SELF-MONITORING
   - job_name: 'prometheus'
     static_configs:
       - targets: ['localhost:9090']
         labels:
           service: 'prometheus'
           tier: 'monitoring'
+
+  # EUREKA SERVER
+  - job_name: 'eureka-server'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 15s
+    static_configs:
+      - targets: ['micro-eureka:8761']
+        labels:
+          application: 'eureka-server'
+          service: 'discovery'
+          tier: 'infrastructure'
+
+  # API GATEWAY
+  - job_name: 'gateway-service'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['micro-api-gateway:8765']
+        labels:
+          application: 'gateway-service'
+          service: 'gateway'
+          tier: 'infrastructure'
+
+  # USER MICROSERVICE
+  - job_name: 'user-service'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['micro-user-service:18081']
+        labels:
+          application: 'user-ms'
+          service: 'user'
+          tier: 'business'
+          domain: 'identity'
+
+  # POST MICROSERVICE
+  - job_name: 'post-service'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['micro-post-service:18082']
+        labels:
+          application: 'post-ms'
+          service: 'post'
+          tier: 'business'
+          domain: 'content'
+
+  # COMMENT MICROSERVICE
+  - job_name: 'comment-service'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['micro-comment-service:18083']
+        labels:
+          application: 'comment-ms'
+          service: 'comment'
+          tier: 'business'
+          domain: 'engagement'
+
+  # LIKE MICROSERVICE
+  - job_name: 'like-service'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['micro-like-service:18085']
+        labels:
+          application: 'like-ms'
+          service: 'like'
+          tier: 'business'
+          domain: 'engagement'
+
+  # FRIENDSHIP MICROSERVICE
+  - job_name: 'friendship-service'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 10s
+    static_configs:
+      - targets: ['micro-friendship-service:18084']
+        labels:
+          application: 'friendship-ms'
+          service: 'friendship'
+          tier: 'business'
+          domain: 'social'

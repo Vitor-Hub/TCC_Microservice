@@ -473,7 +473,7 @@ GET /friendship-ms/api/friendships/user/{userId}
 **🔴 Serviços não iniciam:**
 ```bash
 # Verificar logs
-docker logs micro_user_service
+docker logs micro-user-service
 
 # Aumentar memória do Docker
 Docker Desktop → Settings → Resources → Memory: 6-8GB
@@ -484,7 +484,7 @@ Docker Desktop → Settings → Resources → Memory: 6-8GB
 # Reiniciar em ordem
 docker restart microeureka
 sleep 30
-docker restart micro_api_gateway micro_user_service
+docker restart micro-api-gateway micro-user-service
 ```
 
 **🔴 Gateway retorna 503:**

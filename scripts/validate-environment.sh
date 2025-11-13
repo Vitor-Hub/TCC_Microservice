@@ -159,13 +159,13 @@ echo -e "${CYAN}═════════════════════�
 echo ""
 
 REQUIRED_CONTAINERS=(
-    "microeureka:Eureka Server"
-    "micro_api_gateway:API Gateway"
-    "micro_user_service:User Service"
-    "micro_post_service:Post Service"
-    "micro_comment_service:Comment Service"
-    "micro_like_service:Like Service"
-    "micro_friendship_service:Friendship Service"
+    "micro-eureka:Eureka Server"
+    "micro-api-gateway:API Gateway"
+    "micro-user-service:User Service"
+    "micro-post-service:Post Service"
+    "micro-comment-service:Comment Service"
+    "micro-like-service:Like Service"
+    "micro-friendship-service:Friendship Service"
     "user_ms_db:User Database"
     "post_ms_db:Post Database"
     "comment_ms_db:Comment Database"
@@ -257,7 +257,8 @@ EUREKA_URL="http://localhost:8761/eureka/apps"
 EUREKA_RESPONSE=$(curl -s -H "Accept: application/json" "$EUREKA_URL" 2>/dev/null)
 
 if [ $? -eq 0 ]; then
-    EXPECTED_SERVICES=("GATEWAY-SERVICE" "USER-MS" "POST-MS" "COMMENT-MS" "LIKE-MS" "FRIENDSHIP-MS")
+    # Gateway não precisa estar registrado - ele apenas consome o Eureka
+    EXPECTED_SERVICES=("USER-MS" "POST-MS" "COMMENT-MS" "LIKE-MS" "FRIENDSHIP-MS")
     
     for service in "${EXPECTED_SERVICES[@]}"; do
         if echo "$EUREKA_RESPONSE" | grep -q "\"$service\""; then
@@ -267,6 +268,13 @@ if [ $? -eq 0 ]; then
             ((ERRORS++))
         fi
     done
+    
+    # Informativo sobre o Gateway (não conta como erro)
+    if echo "$EUREKA_RESPONSE" | grep -q "\"GATEWAY-SERVICE\""; then
+        echo -e "${GREEN}ℹ️  GATEWAY-SERVICE está registrado no Eureka (opcional)${NC}"
+    else
+        echo -e "${YELLOW}ℹ️  GATEWAY-SERVICE não está registrado (normal - ele apenas consome o Eureka)${NC}"
+    fi
 else
     echo -e "${RED}❌ Não foi possível consultar o Eureka${NC}"
     ((ERRORS++))
@@ -362,16 +370,16 @@ check_file() {
     fi
 }
 
-check_file "docker-compose.yml" "Docker Compose (Microsserviços)"
-check_file "docker-compose.db.yml" "Docker Compose (Databases)"
-check_file "k6-load-test.js" "Script K6 de teste de carga"
+check_file "../docker-compose.yml" "Docker Compose (Microsserviços)"
+check_file "../docker-compose.db.yml" "Docker Compose (Databases)"
+check_file "../k6-load-test.js" "Script K6 de teste de carga"
 check_file "run-load-test.sh" "Script de execução de testes"
 check_file "generate-report.py" "Gerador de relatórios Python"
 
-# Verifica se diretório de resultados existe
-if [ ! -d "$SCRIPT_DIR/test-results" ]; then
+# Verifica se diretório de resultados existe (na raiz)
+if [ ! -d "$SCRIPT_DIR/../test-results" ]; then
     echo -e "${YELLOW}⚠️  Diretório test-results não existe, será criado${NC}"
-    mkdir -p "$SCRIPT_DIR/test-results"
+    mkdir -p "$SCRIPT_DIR/../test-results"
     ((WARNINGS++))
 else
     echo -e "${GREEN}✅ Diretório test-results existe${NC}"
