@@ -26,7 +26,7 @@ Este guia ajuda a resolver problemas comuns durante a execução do projeto.
 ```bash
 $ docker ps -a
 CONTAINER ID   STATUS                     PORTS     NAMES
-abc123...      Exited (137) 2 seconds ago           micro_user_service
+abc123...      Exited (137) 2 seconds ago           micro-user-service
 ```
 
 **Causas Comuns:**
@@ -38,8 +38,8 @@ abc123...      Exited (137) 2 seconds ago           micro_user_service
 
 1. **Verificar logs:**
 ```bash
-docker logs micro_user_service
-docker logs micro_user_service --tail 100
+docker logs micro-user-service
+docker logs micro-user-service --tail 100
 ```
 
 2. **Aumentar memória do Docker:**
@@ -57,7 +57,7 @@ netstat -an | findstr 18081
 
 4. **Reiniciar o container:**
 ```bash
-docker restart micro_user_service
+docker restart micro-user-service
 ```
 
 ---
@@ -112,7 +112,7 @@ eureka:
 ```bash
 docker restart microeureka
 sleep 30
-docker restart micro_api_gateway micro_user_service micro_post_service
+docker restart micro-api-gateway micro-user-service micro-post-service
 ```
 
 ---
@@ -141,7 +141,7 @@ docker network inspect mstcc-net
 2. **Testar conectividade entre containers:**
 ```bash
 # Entrar em um container
-docker exec -it micro_user_service sh
+docker exec -it micro-user-service sh
 
 # Tentar pingar outro serviço
 ping post-ms
@@ -225,7 +225,7 @@ docker stats
 
 4. **Analisar heap dump (se disponível):**
 ```bash
-docker exec micro_user_service jmap -heap 1
+docker exec micro-user-service jmap -heap 1
 ```
 
 ---
@@ -246,7 +246,7 @@ docker stats --no-stream
 
 2. **Verificar threads da JVM:**
 ```bash
-docker exec micro_user_service jstack 1
+docker exec micro-user-service jstack 1
 ```
 
 3. **Reduzir carga do teste K6:**
@@ -348,7 +348,7 @@ spring:
 
 2. **Verificar logs de inicialização do Hibernate:**
 ```bash
-docker logs micro_user_service | grep -i "hibernate"
+docker logs micro-user-service | grep -i "hibernate"
 ```
 
 3. **Conectar no banco e verificar:**
@@ -613,10 +613,10 @@ curl http://prometheus:9090/api/v1/query?query=up
 docker ps -a
 
 # Logs em tempo real
-docker logs -f micro_user_service
+docker logs -f micro-user-service
 
 # Executar comando dentro do container
-docker exec -it micro_user_service sh
+docker exec -it micro-user-service sh
 
 # Ver uso de recursos
 docker stats
@@ -654,10 +654,10 @@ docker-compose up -d
 
 ```bash
 # Ver últimas 100 linhas de log
-docker logs micro_user_service --tail 100
+docker logs micro-user-service --tail 100
 
 # Seguir logs em tempo real
-docker logs -f micro_user_service
+docker logs -f micro-user-service
 
 # Ver logs de todos os containers
 docker-compose logs -f
@@ -666,7 +666,7 @@ docker-compose logs -f
 docker-compose logs -f user-ms
 
 # Exportar logs para arquivo
-docker logs micro_user_service > logs.txt 2>&1
+docker logs micro-user-service > logs.txt 2>&1
 ```
 
 ### Testes Manuais

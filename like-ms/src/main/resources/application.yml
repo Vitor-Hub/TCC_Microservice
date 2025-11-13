@@ -34,7 +34,7 @@ eureka:
       enabled: true
   instance:
     prefer-ip-address: false
-    hostname: micro_like_service
+    hostname: micro-like-service
     instance-id: ${spring.application.name}:${spring.application.instance-id:${random.value}}
     lease-renewal-interval-in-seconds: 10
     lease-expiration-duration-in-seconds: 30

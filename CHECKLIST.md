@@ -62,7 +62,7 @@ Use este checklist para acompanhar o progresso da implementação do seu projeto
 - [ ] Healthcheck passando
 
 ### API Gateway
-- [ ] Container `micro_api_gateway` rodando
+- [ ] Container `micro-api-gateway` rodando
 - [ ] Healthcheck passando: http://localhost:8765/actuator/health
 - [ ] Registrado no Eureka
 

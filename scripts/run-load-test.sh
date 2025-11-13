@@ -179,7 +179,7 @@ collect_final_metrics() {
     
     # Container logs (últimas 50 linhas de cada serviço)
     echo "--- Container Logs (Últimas 50 linhas) ---" >> "${RESULT_FILE}_final.txt"
-    for container in micro_user_service micro_post_service micro_comment_service micro_like_service micro_friendship_service micro_api_gateway; do
+    for container in micro-user-service micro-post-service micro-comment-service micro-like-service micro-friendship-service micro-api-gateway; do
         if docker ps --format '{{.Names}}' | grep -q "^${container}$"; then
             echo "" >> "${RESULT_FILE}_final.txt"
             echo "=== $container ===" >> "${RESULT_FILE}_final.txt"

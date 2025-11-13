@@ -1,2 +1,32 @@
 .idea
-testes_carga/libs
+
+# Compiled class files
+*.class
+target/
+
+# Log files
+*.log
+
+# Test results
+test-results/
+
+# Docker volumes
+data/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# macOS
+.DS_Store
+
+# Backups
+*.backup
+*.bak
+*.original
+
+# Maven
+.mvn/
+mvnw
+mvnw.cmd
