@@ -21,8 +21,9 @@ echo -e "${BLUE}╚════════════════════�
 echo ""
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BUILD_ERRORS=0
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 SERVICES_BUILT=0
+BUILD_ERRORS=0
 TOTAL_SERVICES=7
 
 # Lista de serviços para build
@@ -49,13 +50,13 @@ build_service() {
     echo -e "${CYAN}[$service_num/$TOTAL_SERVICES] Building $service_name${NC}"
     echo -e "${CYAN}═══════════════════════════════════════════════════════${NC}"
     
-    if [ ! -d "$SCRIPT_DIR/$service_dir" ]; then
+    if [ ! -d "$PROJECT_ROOT/$service_dir" ]; then
         echo -e "${RED}❌ Diretório não encontrado: $service_dir${NC}"
         ((BUILD_ERRORS++))
         return 1
     fi
     
-    cd "$SCRIPT_DIR/$service_dir"
+    cd "$PROJECT_ROOT/$service_dir"
     
     # Verificar se tem pom.xml
     if [ ! -f "pom.xml" ]; then
@@ -71,8 +72,8 @@ build_service() {
         echo -e "${GREEN}✅ $service_name compilado com sucesso!${NC}"
         
         # Verificar se JAR foi criado
-        if [ -f "target/*.jar" ] || ls target/*.jar 1> /dev/null 2>&1; then
-            JAR_SIZE=$(du -h target/*.jar | cut -f1)
+        if ls target/*.jar 1> /dev/null 2>&1; then
+            JAR_SIZE=$(du -h target/*.jar 2>/dev/null | head -1 | cut -f1)
             echo -e "   📦 JAR gerado: $JAR_SIZE"
         fi
         
@@ -92,6 +93,9 @@ build_service() {
 # ═══════════════════════════════════════════════════════════════
 # Verificações iniciais
 # ═══════════════════════════════════════════════════════════════
+echo -e "${BLUE}🗂️  Script location: $SCRIPT_DIR${NC}"
+echo -e "${BLUE}🗂️  Project root: $PROJECT_ROOT${NC}"
+echo ""
 echo -e "${YELLOW}📋 Verificando pré-requisitos...${NC}"
 
 # Verificar Maven
@@ -118,7 +122,7 @@ echo -e "${GREEN}✅ Java encontrado: $JAVA_VERSION${NC}"
 
 # Verificar versão do Java (deve ser 17+)
 JAVA_MAJOR_VERSION=$(java -version 2>&1 | head -n 1 | cut -d'"' -f2 | cut -d'.' -f1)
-if [ "$JAVA_MAJOR_VERSION" -lt 17 ]; then
+if [ "$JAVA_MAJOR_VERSION" -lt 17 ] 2>/dev/null; then
     echo -e "${YELLOW}⚠️  Aviso: Java 17+ é recomendado (encontrado: $JAVA_MAJOR_VERSION)${NC}"
 fi
 
@@ -132,9 +136,9 @@ SERVICE_NUM=1
 
 for service_info in "${SERVICES[@]}"; do
     IFS=':' read -r service_dir service_name <<< "$service_info"
-    build_service "$service_dir" "$service_name" "$SERVICE_NUM"
+    build_service "$service_dir" "$service_name" "$SERVICE_NUM" || true
     ((SERVICE_NUM++))
-    cd "$SCRIPT_DIR"
+    cd "$PROJECT_ROOT"
 done
 
 END_TIME=$(date +%s)
@@ -149,7 +153,7 @@ echo -e "${BLUE}║  📊 RESUMO DO BUILD                                    ║
 echo -e "${BLUE}╚════════════════════════════════════════════════════════╝${NC}"
 echo ""
 
-if [ $BUILD_ERRORS -eq 0 ]; then
+if [ "$BUILD_ERRORS" -eq 0 ]; then
     echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo -e "${GREEN}   ✅ TODOS OS SERVIÇOS COMPILADOS COM SUCESSO!${NC}"
     echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -158,14 +162,14 @@ if [ $BUILD_ERRORS -eq 0 ]; then
     echo -e "${CYAN}Tempo total: ${DURATION}s${NC}"
     echo ""
     echo -e "${YELLOW}Próximos passos:${NC}"
-    echo "1. Subir bancos de dados:"
-    echo "   docker-compose -f docker-compose.db.yml up -d"
+    echo "1. Deploy com otimizações (reset completo):"
+    echo "   ./fresh-start-optimized.sh"
     echo ""
-    echo "2. Subir microsserviços:"
-    echo "   docker-compose up -d"
+    echo "2. Ou deploy normal:"
+    echo "   ./deploy-complete-v2.sh"
     echo ""
-    echo "3. Validar ambiente:"
-    echo "   ./validate-environment.sh"
+    echo "3. Monitorar:"
+    echo "   open http://localhost:3000 (Grafana)"
     echo ""
     exit 0
 else

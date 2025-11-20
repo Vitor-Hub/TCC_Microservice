@@ -10,6 +10,8 @@ import com.mstcc.postsms.feignclients.UserFeignClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.CacheEvict;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -112,5 +114,15 @@ public class PostService {
         }
 
         return postDTOs;
+    }
+
+    @Cacheable(value = "posts", key = "#userId")
+    public List<Post> getPostsByUserId(Long userId) {
+        return postRepository.findByUserId(userId);
+    }
+
+    @CacheEvict(value = "posts", key = "#post.userId")
+    public Post createPost(Post post) {
+        return postRepository.save(post);
     }
 }

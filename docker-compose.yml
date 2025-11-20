@@ -2,64 +2,29 @@ version: "3.8"
 
 services:
   # ==========================================================
-  # 🛰️ EUREKA SERVER
+  # 🌐 EUREKA SERVER - Service Discovery
   # ==========================================================
-  eureka-server:
-    image: microsservice-eureka-server
-    container_name: micro-eureka
-    hostname: micro-eureka
-    build:
-      context: ./eureka-server-ms
+  eureka-server-ms:
+    build: ./eureka-server-ms
+    container_name: mstcc_eureka_server
+    restart: unless-stopped
     ports:
       - "8761:8761"
     environment:
-      - JAVA_OPTS=-Xmx384m -Xms256m
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 40s
+      - SPRING_PROFILES_ACTIVE=docker
+      - JAVA_OPTS=-Xmx512m -Xms256m -XX:+UseG1GC
     networks:
       - mstcc-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8761/actuator/health || curl -f http://localhost:8761 || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 12
+      start_period: 45s
     deploy:
       resources:
         limits:
-          memory: 512M
-        reservations:
-          memory: 256M
-
-  # ==========================================================
-  # 🌐 GATEWAY
-  # ==========================================================
-  gateway-service:
-    image: microsservice-gateway-service
-    container_name: micro-api-gateway
-    hostname: micro-api-gateway
-    build:
-      context: ./gateway-service-ms
-    ports:
-      - "8765:8765"
-    depends_on:
-      eureka-server:
-        condition: service_healthy
-    environment:
-      - EUREKA_INSTANCE_HOSTNAME=micro-api-gateway
-      - SPRING_PROFILES_ACTIVE=default
-      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
-      - JAVA_OPTS=-Xmx384m -Xms256m
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8765/actuator/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 40s
-    networks:
-      - mstcc-net
-    deploy:
-      resources:
-        limits:
-          memory: 512M
+          memory: 768M
         reservations:
           memory: 256M
 
@@ -67,116 +32,110 @@ services:
   # 👤 USER SERVICE
   # ==========================================================
   user-ms:
-    image: microsservice-user-ms
-    container_name: micro-user-service
-    hostname: micro-user-service
-    build:
-      context: ./user-ms
+    build: ./user-ms
+    container_name: mstcc_user_service
+    restart: unless-stopped
     ports:
       - "18081:18081"
-    depends_on:
-      eureka-server:
-        condition: service_healthy
-      user-ms-db:
-        condition: service_healthy
     environment:
-      - EUREKA_INSTANCE_HOSTNAME=micro-user-service
-      - SPRING_PROFILES_ACTIVE=default
+      - SPRING_PROFILES_ACTIVE=docker
       - SPRING_DATASOURCE_URL=jdbc:postgresql://user-ms-db:5432/userdb
       - SPRING_DATASOURCE_USERNAME=user
       - SPRING_DATASOURCE_PASSWORD=user123
-      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
-      - JAVA_OPTS=-Xmx384m -Xms256m
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:18081/actuator/health"]
-      interval: 15s
-      timeout: 5s
-      retries: 10
-      start_period: 60s
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server-ms:8761/eureka/
+      - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
+      - JAVA_OPTS=-Xmx768m -Xms384m -XX:+UseG1GC
+    depends_on:
+      eureka-server-ms:
+        condition: service_healthy
+      user-ms-db:
+        condition: service_healthy
     networks:
       - mstcc-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:18081/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 8
+      start_period: 60s
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 1G
         reservations:
-          memory: 256M
+          memory: 384M
 
   # ==========================================================
   # 📝 POST SERVICE
   # ==========================================================
   post-ms:
-    image: microsservice-post-ms
-    container_name: micro-post-service
-    hostname: micro-post-service
-    build:
-      context: ./post-ms
+    build: ./post-ms
+    container_name: mstcc_post_service
+    restart: unless-stopped
     ports:
       - "18082:18082"
-    depends_on:
-      eureka-server:
-        condition: service_healthy
-      post-ms-db:
-        condition: service_healthy
     environment:
-      - EUREKA_INSTANCE_HOSTNAME=micro-post-service
-      - SPRING_PROFILES_ACTIVE=default
+      - SPRING_PROFILES_ACTIVE=docker
       - SPRING_DATASOURCE_URL=jdbc:postgresql://post-ms-db:5432/postdb
       - SPRING_DATASOURCE_USERNAME=post
       - SPRING_DATASOURCE_PASSWORD=post123
-      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
-      - JAVA_OPTS=-Xmx384m -Xms256m
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:18082/actuator/health"]
-      interval: 15s
-      timeout: 5s
-      retries: 10
-      start_period: 60s
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server-ms:8761/eureka/
+      - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
+      - JAVA_OPTS=-Xmx768m -Xms384m -XX:+UseG1GC
+    depends_on:
+      eureka-server-ms:
+        condition: service_healthy
+      post-ms-db:
+        condition: service_healthy
     networks:
       - mstcc-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:18082/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 8
+      start_period: 60s
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 1G
         reservations:
-          memory: 256M
+          memory: 384M
 
   # ==========================================================
   # 💬 COMMENT SERVICE
   # ==========================================================
   comment-ms:
-    image: microsservice-comment-ms
-    container_name: micro-comment-service
-    hostname: micro-comment-service
-    build:
-      context: ./comment-ms
+    build: ./comment-ms
+    container_name: mstcc_comment_service
+    restart: unless-stopped
     ports:
       - "18083:18083"
-    depends_on:
-      eureka-server:
-        condition: service_healthy
-      comment-ms-db:
-        condition: service_healthy
     environment:
-      - EUREKA_INSTANCE_HOSTNAME=micro-comment-service
-      - SPRING_PROFILES_ACTIVE=default
+      - SPRING_PROFILES_ACTIVE=docker
       - SPRING_DATASOURCE_URL=jdbc:postgresql://comment-ms-db:5432/commentdb
       - SPRING_DATASOURCE_USERNAME=comment
       - SPRING_DATASOURCE_PASSWORD=comment123
-      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
-      - JAVA_OPTS=-Xmx384m -Xms256m
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:18083/actuator/health"]
-      interval: 15s
-      timeout: 5s
-      retries: 10
-      start_period: 60s
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server-ms:8761/eureka/
+      - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
+      - JAVA_OPTS=-Xmx512m -Xms256m -XX:+UseG1GC
+    depends_on:
+      eureka-server-ms:
+        condition: service_healthy
+      comment-ms-db:
+        condition: service_healthy
     networks:
       - mstcc-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:18083/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 8
+      start_period: 60s
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 768M
         reservations:
           memory: 256M
 
@@ -184,38 +143,36 @@ services:
   # 👍 LIKE SERVICE
   # ==========================================================
   like-ms:
-    image: microsservice-like-ms
-    container_name: micro-like-service
-    hostname: micro-like-service
-    build:
-      context: ./like-ms
+    build: ./like-ms
+    container_name: mstcc_like_service
+    restart: unless-stopped
     ports:
-      - "18085:18085"
-    depends_on:
-      eureka-server:
-        condition: service_healthy
-      like-ms-db:
-        condition: service_healthy
+      - "18084:18084"
     environment:
-      - EUREKA_INSTANCE_HOSTNAME=micro-like-service
-      - SPRING_PROFILES_ACTIVE=default
+      - SPRING_PROFILES_ACTIVE=docker
       - SPRING_DATASOURCE_URL=jdbc:postgresql://like-ms-db:5432/likedb
       - SPRING_DATASOURCE_USERNAME=like
       - SPRING_DATASOURCE_PASSWORD=like123
-      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
-      - JAVA_OPTS=-Xmx384m -Xms256m
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:18085/actuator/health"]
-      interval: 15s
-      timeout: 5s
-      retries: 10
-      start_period: 60s
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server-ms:8761/eureka/
+      - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
+      - JAVA_OPTS=-Xmx512m -Xms256m -XX:+UseG1GC
+    depends_on:
+      eureka-server-ms:
+        condition: service_healthy
+      like-ms-db:
+        condition: service_healthy
     networks:
       - mstcc-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:18084/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 8
+      start_period: 60s
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 768M
         reservations:
           memory: 256M
 
@@ -223,44 +180,85 @@ services:
   # 🤝 FRIENDSHIP SERVICE
   # ==========================================================
   friendship-ms:
-    image: microsservice-friendship-ms
-    container_name: micro-friendship-service
-    hostname: micro-friendship-service
-    build:
-      context: ./friendship-ms
+    build: ./friendship-ms
+    container_name: mstcc_friendship_service
+    restart: unless-stopped
     ports:
-      - "18084:18084"
-    depends_on:
-      eureka-server:
-        condition: service_healthy
-      friendship-ms-db:
-        condition: service_healthy
+      - "18085:18085"
     environment:
-      - EUREKA_INSTANCE_HOSTNAME=micro-friendship-service
-      - SPRING_PROFILES_ACTIVE=default
+      - SPRING_PROFILES_ACTIVE=docker
       - SPRING_DATASOURCE_URL=jdbc:postgresql://friendship-ms-db:5432/friendshipdb
       - SPRING_DATASOURCE_USERNAME=friendship
       - SPRING_DATASOURCE_PASSWORD=friendship123
-      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
-      - JAVA_OPTS=-Xmx384m -Xms256m
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:18084/actuator/health"]
-      interval: 15s
-      timeout: 5s
-      retries: 10
-      start_period: 60s
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server-ms:8761/eureka/
+      - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
+      - JAVA_OPTS=-Xmx512m -Xms256m -XX:+UseG1GC
+    depends_on:
+      eureka-server-ms:
+        condition: service_healthy
+      friendship-ms-db:
+        condition: service_healthy
     networks:
       - mstcc-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:18085/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 8
+      start_period: 60s
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 768M
         reservations:
           memory: 256M
 
   # ==========================================================
-  # 🗄️ DATABASES (referências externas)
+  # 🚪 API GATEWAY - Entry Point (STARTS LAST!)
   # ==========================================================
+  gateway-service-ms:
+    build: ./gateway-service-ms
+    container_name: mstcc_gateway
+    restart: unless-stopped
+    ports:
+      - "18765:18765"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server-ms:8761/eureka/
+      - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
+      - JAVA_OPTS=-Xmx1024m -Xms512m -XX:+UseG1GC
+    depends_on:
+      eureka-server-ms:
+        condition: service_healthy
+      user-ms:
+        condition: service_started
+      post-ms:
+        condition: service_started
+      comment-ms:
+        condition: service_started
+      like-ms:
+        condition: service_started
+      friendship-ms:
+        condition: service_started
+    networks:
+      - mstcc-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:18765/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 8
+      start_period: 75s
+    deploy:
+      resources:
+        limits:
+          memory: 1.5G
+        reservations:
+          memory: 512M
+
+  # ==========================================================
+  # 🗄️ POSTGRESQL DATABASES
+  # ==========================================================
+  
   user-ms-db:
     image: postgres:15-alpine
     container_name: user_ms_db
@@ -271,6 +269,7 @@ services:
       POSTGRES_DB: userdb
       POSTGRES_USER: user
       POSTGRES_PASSWORD: user123
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8"
     volumes:
       - user_db_data:/var/lib/postgresql/data
     healthcheck:
@@ -278,12 +277,15 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 20s
     networks:
       - mstcc-net
     deploy:
       resources:
         limits:
           memory: 256M
+        reservations:
+          memory: 128M
 
   post-ms-db:
     image: postgres:15-alpine
@@ -295,6 +297,7 @@ services:
       POSTGRES_DB: postdb
       POSTGRES_USER: post
       POSTGRES_PASSWORD: post123
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8"
     volumes:
       - post_db_data:/var/lib/postgresql/data
     healthcheck:
@@ -302,12 +305,15 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 20s
     networks:
       - mstcc-net
     deploy:
       resources:
         limits:
           memory: 256M
+        reservations:
+          memory: 128M
 
   comment-ms-db:
     image: postgres:15-alpine
@@ -319,6 +325,7 @@ services:
       POSTGRES_DB: commentdb
       POSTGRES_USER: comment
       POSTGRES_PASSWORD: comment123
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8"
     volumes:
       - comment_db_data:/var/lib/postgresql/data
     healthcheck:
@@ -326,12 +333,15 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 20s
     networks:
       - mstcc-net
     deploy:
       resources:
         limits:
           memory: 256M
+        reservations:
+          memory: 128M
 
   like-ms-db:
     image: postgres:15-alpine
@@ -343,6 +353,7 @@ services:
       POSTGRES_DB: likedb
       POSTGRES_USER: like
       POSTGRES_PASSWORD: like123
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8"
     volumes:
       - like_db_data:/var/lib/postgresql/data
     healthcheck:
@@ -350,12 +361,15 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 20s
     networks:
       - mstcc-net
     deploy:
       resources:
         limits:
           memory: 256M
+        reservations:
+          memory: 128M
 
   friendship-ms-db:
     image: postgres:15-alpine
@@ -367,6 +381,7 @@ services:
       POSTGRES_DB: friendshipdb
       POSTGRES_USER: friendship
       POSTGRES_PASSWORD: friendship123
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8"
     volumes:
       - friendship_db_data:/var/lib/postgresql/data
     healthcheck:
@@ -374,22 +389,30 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 20s
     networks:
       - mstcc-net
     deploy:
       resources:
         limits:
           memory: 256M
+        reservations:
+          memory: 128M
 
 # ==========================================================
 # 📦 VOLUMES
 # ==========================================================
 volumes:
   user_db_data:
+    driver: local
   post_db_data:
+    driver: local
   comment_db_data:
+    driver: local
   like_db_data:
+    driver: local
   friendship_db_data:
+    driver: local
 
 # ==========================================================
 # 🗂️ NETWORK
@@ -397,3 +420,6 @@ volumes:
 networks:
   mstcc-net:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16

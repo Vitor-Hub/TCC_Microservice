@@ -1,32 +1,94 @@
-.idea
-
-# Compiled class files
-*.class
-target/
-
-# Log files
-*.log
-
-# Test results
-test-results/
-
-# Docker volumes
-data/
-
 # IDE
 .idea/
 .vscode/
 *.iml
+*.iws
+*.ipr
+
+# Compiled class files
+*.class
+
+# Maven
+target/
+.mvn/
+mvnw
+mvnw.cmd
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# Spring Boot
+spring-boot-*.log
+*.jar
+*.war
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# Log files
+*.log
+logs/
+
+# Test results
+test-results/
+*.test
+
+# Docker volumes
+data/
+volumes/
 
 # macOS
 .DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+*~
 
 # Backups
 *.backup
 *.bak
 *.original
+*.swp
+*.swo
 
-# Maven
-.mvn/
-mvnw
-mvnw.cmd
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Coverage reports
+coverage/
+*.lcov
+
+# Node modules (if any frontend)
+node_modules/
