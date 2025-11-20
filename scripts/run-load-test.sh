@@ -51,7 +51,7 @@ echo ""
 # ===================================
 echo -e "${YELLOW}🔍 Verificando se os serviços estão rodando...${NC}"
 
-GATEWAY_URL="http://localhost:8765"
+GATEWAY_URL="http://localhost:18765"
 EUREKA_URL="http://localhost:8761"
 PROMETHEUS_URL="http://localhost:9090"
 GRAFANA_URL="http://localhost:3000"
@@ -178,12 +178,19 @@ collect_final_metrics() {
     echo "" >> "${RESULT_FILE}_final.txt"
     
     # Container logs (últimas 50 linhas de cada serviço)
+    # FIXED: Using correct container names from docker-compose.yml
     echo "--- Container Logs (Últimas 50 linhas) ---" >> "${RESULT_FILE}_final.txt"
-    for container in micro-user-service micro-post-service micro-comment-service micro-like-service micro-friendship-service micro-api-gateway; do
+    
+    # List of actual container names from docker-compose.yml
+    for container in mstcc_user_service mstcc_post_service mstcc_comment_service mstcc_like_service mstcc_friendship_service mstcc_gateway mstcc_eureka_server; do
+        # Check if container exists and is running
         if docker ps --format '{{.Names}}' | grep -q "^${container}$"; then
             echo "" >> "${RESULT_FILE}_final.txt"
             echo "=== $container ===" >> "${RESULT_FILE}_final.txt"
             docker logs --tail 50 "$container" >> "${RESULT_FILE}_final.txt" 2>&1
+        else
+            echo "" >> "${RESULT_FILE}_final.txt"
+            echo "=== $container (NOT RUNNING) ===" >> "${RESULT_FILE}_final.txt"
         fi
     done
 }

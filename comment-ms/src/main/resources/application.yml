@@ -6,6 +6,15 @@ spring:
     username: comment
     password: comment123
     driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 30
+      minimum-idle: 15
+      connection-timeout: 20000
+      idle-timeout: 300000
+      max-lifetime: 1800000
+      auto-commit: false
+      connection-test-query: SELECT 1
+      validation-timeout: 3000
   jpa:
     hibernate:
       ddl-auto: update
@@ -13,6 +22,10 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
   cloud:
     openfeign:
       client:
@@ -25,11 +38,19 @@ spring:
 
 server:
   port: 18083
+  tomcat:
+    threads:
+      max: 400
+      min-spare: 100
+    accept-count: 300
+    max-connections: 10000
+  http2:
+    enabled: true
 
 eureka:
   client:
     service-url:
-      defaultZone: http://microeureka:8761/eureka/
+      defaultZone: http://eureka-server-ms:8761/eureka/
     healthcheck:
       enabled: true
   instance:
@@ -59,13 +80,20 @@ feign:
     enabled: true
 
 resilience4j:
+  timelimiter:
+    instances:
+      default:
+        timeout-duration: 10s
   circuitbreaker:
     instances:
       default:
-        slidingWindowSize: 20
-        minimumNumberOfCalls: 10
-        permittedNumberOfCallsInHalfOpenState: 5
-        waitDurationInOpenState: 10s
+        register-health-indicator: true
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        slow-call-rate-threshold: 50
+        slow-call-duration-threshold: 5s
+        wait-duration-in-open-state: 10s
   retry:
     instances:
       default:

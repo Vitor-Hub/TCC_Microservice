@@ -1,53 +1,95 @@
+server:
+  port: 18765
+
 spring:
   application:
     name: gateway-service-ms
+
   cloud:
     gateway:
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+
+      httpclient:
+        connect-timeout: 5000
+        response-timeout: 15s
+        pool:
+          type: FIXED
+          max-connections: 500
+          acquire-timeout: 45000
+
       routes:
+        # User Service Route
         - id: user-route
-          uri: lb://user-ms
+          uri: lb://USER-MS
           predicates:
             - Path=/user-ms/**
           filters:
             - StripPrefix=1
+            - name: CircuitBreaker
+              args:
+                name: userServiceCB
+                fallbackUri: forward:/fallback/user
+
+        # Post Service Route (with Circuit Breaker)
         - id: post-route
-          uri: lb://post-ms
+          uri: lb://POST-MS
           predicates:
             - Path=/post-ms/**
           filters:
             - StripPrefix=1
+            - name: CircuitBreaker
+              args:
+                name: postServiceCB
+                fallbackUri: forward:/fallback/post
+
+        # Comment Service Route
         - id: comment-route
-          uri: lb://comment-ms
+          uri: lb://COMMENT-MS
           predicates:
             - Path=/comment-ms/**
           filters:
             - StripPrefix=1
+            - name: CircuitBreaker
+              args:
+                name: commentServiceCB
+                fallbackUri: forward:/fallback/comment
+
+        # Like Service Route
         - id: like-route
-          uri: lb://like-ms
+          uri: lb://LIKE-MS
           predicates:
             - Path=/like-ms/**
           filters:
             - StripPrefix=1
+            - name: CircuitBreaker
+              args:
+                name: likeServiceCB
+                fallbackUri: forward:/fallback/like
+
+        # Friendship Service Route
         - id: friendship-route
-          uri: lb://friendship-ms
+          uri: lb://FRIENDSHIP-MS
           predicates:
             - Path=/friendship-ms/**
           filters:
             - StripPrefix=1
-    discovery:
-      locator:
-        enabled: true
-        lower-case-service-id: true
-
-server:
-  port: 8765
+            - name: CircuitBreaker
+              args:
+                name: friendshipServiceCB
+                fallbackUri: forward:/fallback/friendship
 
 eureka:
   client:
+    register-with-eureka: true
+    fetch-registry: true
     service-url:
-      defaultZone: http://microeureka:8761/eureka/
+      defaultZone: http://eureka-server-ms:8761/eureka/
     healthcheck:
       enabled: true
+
   instance:
     prefer-ip-address: false
     hostname: micro-api-gateway
@@ -62,25 +104,62 @@ management:
   endpoint:
     health:
       show-details: always
+    prometheus:
+      enabled: true
   metrics:
     export:
       prometheus:
         enabled: true
 
-feign:
-  circuitbreaker:
-    enabled: true
-
+# Resilience4j Circuit Breaker Configuration
 resilience4j:
   circuitbreaker:
-    instances:
+    configs:
       default:
-        slidingWindowSize: 20
-        minimumNumberOfCalls: 10
-        permittedNumberOfCallsInHalfOpenState: 5
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
         waitDurationInOpenState: 10s
-  retry:
+        failureRateThreshold: 50
+        eventConsumerBufferSize: 10
+        recordExceptions:
+          - org.springframework.web.client.HttpServerErrorException
+          - java.util.concurrent.TimeoutException
+          - java.io.IOException
     instances:
+      userServiceCB:
+        baseConfig: default
+      postServiceCB:
+        baseConfig: default
+        waitDurationInOpenState: 15s
+        failureRateThreshold: 40
+      commentServiceCB:
+        baseConfig: default
+      likeServiceCB:
+        baseConfig: default
+      friendshipServiceCB:
+        baseConfig: default
+
+  timelimiter:
+    configs:
       default:
-        maxAttempts: 2
-        waitDuration: 200ms
+        timeoutDuration: 15s
+    instances:
+      userServiceCB:
+        baseConfig: default
+      postServiceCB:
+        baseConfig: default
+        timeoutDuration: 20s
+      commentServiceCB:
+        baseConfig: default
+      likeServiceCB:
+        baseConfig: default
+      friendshipServiceCB:
+        baseConfig: default
+
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG
+    io.github.resilience4j: DEBUG

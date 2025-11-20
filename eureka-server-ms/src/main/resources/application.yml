@@ -1,36 +1,39 @@
+server:
+  port: 8761
+
 spring:
   application:
     name: eureka-server
 
-server:
-  port: 8761
-
 eureka:
+  instance:
+    hostname: eureka-server-ms
+    prefer-ip-address: false
   client:
     register-with-eureka: false
     fetch-registry: false
-  instance:
-    hostname: localhost
+    service-url:
+      defaultZone: http://${eureka.instance.hostname}:${server.port}/eureka/
   server:
-    enable-self-preservation: false
-    eviction-interval-timer-in-ms: 5000
-    renewal-percent-threshold: 0.49
-    response-cache-update-interval-ms: 5000
-
-logging:
-  level:
-    com.netflix.eureka: INFO
-    com.netflix.discovery: INFO
+    enable-self-preservation: true
+    eviction-interval-timer-in-ms: 15000
+    renewal-percent-threshold: 0.85
 
 management:
   endpoints:
     web:
       exposure:
-        include: health,info,prometheus,metrics
+        include: health,info,metrics
+      base-path: /actuator
   endpoint:
     health:
       show-details: always
-  metrics:
-    export:
-      prometheus:
-        enabled: true
+  health:
+    defaults:
+      enabled: true
+
+logging:
+  level:
+    root: INFO
+    com.netflix.eureka: INFO
+    com.netflix.discovery: INFO
