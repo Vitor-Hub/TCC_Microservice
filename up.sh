@@ -1,14 +1,10 @@
 #!/bin/bash
 
-# Database Optimization Script
-# Applies indexes and optimizations to Post Service database
+# ═══════════════════════════════════════════════════════════════
+# 🔧 RECOVERY: Restore pom.xml and Apply Correct Fixes
+# ═══════════════════════════════════════════════════════════════
 
 set -e
-
-echo "======================================"
-echo "📊 Post Service DB Optimization"
-echo "======================================"
-echo ""
 
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -16,92 +12,120 @@ BLUE='\033[0;34m'
 RED='\033[0;31m'
 NC='\033[0m'
 
-# Check if container is running
-echo -e "${YELLOW}🔍 Checking if post_ms_db container is running...${NC}"
+echo -e "${BLUE}╔════════════════════════════════════════════════════════╗${NC}"
+echo -e "${BLUE}║  🔧 RECOVERING POM.XML FILES                          ║${NC}"
+echo -e "${BLUE}╚════════════════════════════════════════════════════════╝${NC}"
+echo ""
 
-if ! docker ps | grep -q "post_ms_db"; then
-    echo -e "${RED}❌ Error: post_ms_db container is not running${NC}"
-    echo "Please start the services first:"
-    echo "  ./deploy-complete-v2.sh"
-    exit 1
+SERVICES=("user-ms" "comment-ms" "like-ms" "friendship-ms")
+
+echo -e "${YELLOW}📋 Step 1: Restoring from backups...${NC}"
+echo ""
+
+for service in "${SERVICES[@]}"; do
+    POM="$service/pom.xml"
+    BAK="$service/pom.xml.bak"
+    
+    if [ -f "$BAK" ]; then
+        echo -e "${YELLOW}  Restoring $service...${NC}"
+        cp "$BAK" "$POM"
+        echo -e "${GREEN}  ✅ Restored from backup${NC}"
+    else
+        echo -e "${RED}  ⚠️  No backup found for $service${NC}"
+    fi
+done
+
+echo ""
+echo -e "${YELLOW}📋 Step 2: Adding cache dependencies correctly...${NC}"
+echo ""
+
+# Function to add cache dependencies properly
+add_cache_deps() {
+    local service=$1
+    local pom_file="$service/pom.xml"
+    
+    echo -e "${YELLOW}  Processing $service...${NC}"
+    
+    # Check if already has cache dependency
+    if grep -q "spring-boot-starter-cache" "$pom_file"; then
+        echo -e "${BLUE}    ℹ️  Cache dependencies already exist${NC}"
+        return 0
+    fi
+    
+    # Find the line number of </dependencies>
+    local line_num=$(grep -n "</dependencies>" "$pom_file" | head -1 | cut -d: -f1)
+    
+    if [ -z "$line_num" ]; then
+        echo -e "${RED}    ❌ Could not find </dependencies> tag${NC}"
+        return 1
+    fi
+    
+    # Create temp file with new dependencies
+    head -n $((line_num - 1)) "$pom_file" > "$pom_file.tmp"
+    
+    # Add cache dependencies
+    cat >> "$pom_file.tmp" << 'EOF'
+
+        <!-- Cache dependencies for performance optimization -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-cache</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
+            <version>3.1.8</version>
+        </dependency>
+EOF
+    
+    # Add closing tag and rest of file
+    tail -n +$line_num "$pom_file" >> "$pom_file.tmp"
+    
+    # Replace original file
+    mv "$pom_file.tmp" "$pom_file"
+    
+    echo -e "${GREEN}    ✅ Added cache dependencies${NC}"
+}
+
+# Apply to each service
+for service in "${SERVICES[@]}"; do
+    add_cache_deps "$service"
+done
+
+echo ""
+echo -e "${YELLOW}📋 Step 3: Validating pom.xml files...${NC}"
+echo ""
+
+VALID_COUNT=0
+for service in "${SERVICES[@]}"; do
+    echo -e "${YELLOW}  Validating $service...${NC}"
+    if mvn -f "$service/pom.xml" validate 2>/dev/null; then
+        echo -e "${GREEN}    ✅ Valid XML${NC}"
+        ((VALID_COUNT++))
+    else
+        echo -e "${RED}    ❌ Invalid XML${NC}"
+    fi
+done
+
+echo ""
+echo -e "${BLUE}╔════════════════════════════════════════════════════════╗${NC}"
+echo -e "${BLUE}║  📊 RECOVERY SUMMARY                                   ║${NC}"
+echo -e "${BLUE}╚════════════════════════════════════════════════════════╝${NC}"
+echo ""
+
+if [ $VALID_COUNT -eq ${#SERVICES[@]} ]; then
+    echo -e "${GREEN}✅ All pom.xml files recovered and fixed!${NC}"
+    echo ""
+    echo "🧪 Next steps:"
+    echo "  1. Test build:"
+    echo "     mvn clean install -DskipTests"
+    echo ""
+    echo "  2. If successful, rebuild all services:"
+    echo "     ./scripts/build-all.sh"
+    echo ""
+else
+    echo -e "${RED}⚠️  Some pom.xml files may still have issues${NC}"
+    echo ""
+    echo "Please share the content of one pom.xml file around line 77"
+    echo "so I can see the exact structure."
 fi
-
-echo -e "${GREEN}✅ Container is running${NC}"
-echo ""
-
-# Create SQL script inside container
-echo -e "${YELLOW}📝 Creating optimization script...${NC}"
-
-docker exec -i post_ms_db bash -c 'cat > /tmp/optimize.sql' << 'EOF'
--- Create indexes
-CREATE INDEX IF NOT EXISTS idx_posts_user_id ON posts(user_id);
-CREATE INDEX IF NOT EXISTS idx_posts_created_at ON posts(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_posts_user_created ON posts(user_id, created_at DESC);
-
--- Analyze tables
-ANALYZE posts;
-
--- Show indexes
-SELECT
-    tablename,
-    indexname,
-    indexdef
-FROM pg_indexes
-WHERE tablename = 'posts'
-ORDER BY indexname;
-EOF
-
-echo -e "${GREEN}✅ Script created${NC}"
-echo ""
-
-# Execute optimization
-echo -e "${YELLOW}⚙️ Applying optimizations...${NC}"
-echo ""
-
-docker exec -i post_ms_db psql -U post -d postdb -f /tmp/optimize.sql
-
-echo ""
-echo -e "${GREEN}✅ Optimization applied successfully!${NC}"
-echo ""
-
-# Test query performance
-echo -e "${YELLOW}🧪 Testing query performance...${NC}"
-echo ""
-
-docker exec -i post_ms_db psql -U post -d postdb << 'EOF'
--- Show table stats
-SELECT
-    schemaname,
-    tablename,
-    pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) AS size
-FROM pg_tables
-WHERE tablename = 'posts';
-
--- Test query with EXPLAIN
-EXPLAIN ANALYZE 
-SELECT * FROM posts 
-WHERE user_id = 1 
-ORDER BY created_at DESC 
-LIMIT 10;
-EOF
-
-echo ""
-echo "======================================"
-echo -e "${GREEN}✅ Database Optimization Complete!${NC}"
-echo "======================================"
-echo ""
-echo "📊 What was optimized:"
-echo "  ✅ Added index on user_id"
-echo "  ✅ Added index on created_at"
-echo "  ✅ Added composite index on (user_id, created_at)"
-echo "  ✅ Updated table statistics"
-echo ""
-echo "🚀 Next steps:"
-echo "  1. Restart post-ms service:"
-echo "     docker-compose restart post-ms"
-echo ""
-echo "  2. Run load tests again:"
-echo "     cd scripts && ./run-load-test.sh"
-echo ""
-echo "  3. Compare results in Grafana"
-echo ""
