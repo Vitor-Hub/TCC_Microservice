@@ -1,41 +1,53 @@
 spring:
   application:
     name: user-ms
+  
+  # Database configuration
   datasource:
     url: jdbc:postgresql://user-ms-db:5432/userdb
     username: user
     password: user123
     driver-class-name: org.postgresql.Driver
     hikari:
-      maximum-pool-size: 50
-      minimum-idle: 10
-      connection-timeout: 30000
+      maximum-pool-size: 100          # Increased - User-MS is heavily called
+      minimum-idle: 50                # Increased - keep connections ready
+      connection-timeout: 5000
       idle-timeout: 300000
       max-lifetime: 1800000
       auto-commit: false
       connection-test-query: SELECT 1
       validation-timeout: 3000
+      leak-detection-threshold: 60000
+      pool-name: UserHikariPool
+  
+  # JPA configuration
   jpa:
     hibernate:
       ddl-auto: update
     show-sql: false
+    open-in-view: false               # Prevent lazy loading issues
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         jdbc:
-          batch_size: 20
+          batch_size: 30
+          fetch_size: 50
         order_inserts: true
         order_updates: true
-  cloud:
-    openfeign:
-      client:
-        config:
-          default:
-            connectTimeout: 2000
-            readTimeout: 4000
-    loadbalancer:
-      enabled: true
+        connection:
+          provider_disables_autocommit: true
+        query:
+          in_clause_parameter_padding: true
+        generate_statistics: false
+  
+  # Cache configuration
+  cache:
+    type: caffeine
+    caffeine:
+      spec: maximumSize=10000,expireAfterWrite=30m,expireAfterAccess=15m,recordStats
+    cache-names: users,usersByUsername,userExists
 
+# Server configuration
 server:
   port: 18081
   tomcat:
@@ -44,58 +56,99 @@ server:
       min-spare: 100
     accept-count: 300
     max-connections: 10000
+    connection-timeout: 20000
+    max-keep-alive-requests: 200
   http2:
     enabled: true
+  compression:
+    enabled: true
+    mime-types: application/json,text/html
 
+# Eureka configuration
 eureka:
   client:
     service-url:
       defaultZone: http://eureka-server-ms:8761/eureka/
     healthcheck:
       enabled: true
+    registry-fetch-interval-seconds: 10
+    initial-instance-info-replication-interval-seconds: 10
   instance:
     prefer-ip-address: false
     hostname: micro-user-ms
     instance-id: ${spring.application.name}:${spring.application.instance-id:${random.value}}
     lease-renewal-interval-in-seconds: 10
     lease-expiration-duration-in-seconds: 30
+    metadata-map:
+      version: 1.0.0
+      cache-enabled: true
 
+# Actuator/Prometheus configuration
 management:
   endpoints:
     web:
       exposure:
-        include: health,info,prometheus,metrics
+        include: health,info,prometheus,metrics,caches,threaddump
   endpoint:
     health:
       show-details: always
+      probes:
+        enabled: true
     prometheus:
       enabled: true
+    caches:
+      enabled: true                   # NEW - cache metrics endpoint
   metrics:
     export:
       prometheus:
         enabled: true
+    tags:
+      application: ${spring.application.name}
+      service: user-service
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+    cache:
+      metric-names: users,usersByUsername,userExists  # NEW - cache metrics
+  health:
+    circuitbreakers:
+      enabled: true
 
-feign:
-  circuitbreaker:
-    enabled: true
-
+# Resilience4j configuration (even though User-MS doesn't call other services)
 resilience4j:
   timelimiter:
     instances:
       default:
-        timeout-duration: 10s
+        timeout-duration: 5s
+  
   circuitbreaker:
     instances:
       default:
         register-health-indicator: true
-        sliding-window-size: 10
-        minimum-number-of-calls: 5
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 20
+        minimum-number-of-calls: 10
         failure-rate-threshold: 50
         slow-call-rate-threshold: 50
-        slow-call-duration-threshold: 5s
-        wait-duration-in-open-state: 10s
+        slow-call-duration-threshold: 3s
+        wait-duration-in-open-state: 15s
+        permitted-number-of-calls-in-half-open-state: 5
+        automatic-transition-from-open-to-half-open-enabled: true
+  
   retry:
     instances:
       default:
-        maxAttempts: 2
-        waitDuration: 200ms
+        maxAttempts: 3
+        waitDuration: 500ms
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+
+# Logging configuration
+logging:
+  level:
+    com.mstcc.userms: INFO
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
+    org.springframework.cache: DEBUG  # Cache activity logging
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

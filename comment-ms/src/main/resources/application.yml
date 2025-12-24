@@ -1,31 +1,53 @@
 spring:
   application:
     name: comment-ms
+  
+  # Database configuration with optimized connection pool
   datasource:
     url: jdbc:postgresql://comment-ms-db:5432/commentdb
     username: comment
     password: comment123
     driver-class-name: org.postgresql.Driver
     hikari:
-      maximum-pool-size: 50
-      minimum-idle: 10
-      connection-timeout: 30000
+      maximum-pool-size: 100
+      minimum-idle: 40
+      connection-timeout: 5000
       idle-timeout: 300000
       max-lifetime: 1800000
       auto-commit: false
       connection-test-query: SELECT 1
       validation-timeout: 3000
+      leak-detection-threshold: 60000
+      pool-name: CommentHikariPool
+  
+  # JPA/Hibernate optimizations
   jpa:
     hibernate:
       ddl-auto: update
     show-sql: false
+    open-in-view: false
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         jdbc:
-          batch_size: 20
+          batch_size: 30
+          fetch_size: 50
         order_inserts: true
         order_updates: true
+        connection:
+          provider_disables_autocommit: true
+        query:
+          in_clause_parameter_padding: true
+        generate_statistics: false
+  
+  # Cache configuration
+  cache:
+    type: caffeine
+    caffeine:
+      spec: maximumSize=10000,expireAfterWrite=15m,expireAfterAccess=10m,recordStats
+    cache-names: comments,postComments,userComments
+  
+  # Feign client optimizations
   cloud:
     openfeign:
       client:
@@ -33,9 +55,25 @@ spring:
           default:
             connectTimeout: 2000
             readTimeout: 4000
+            loggerLevel: basic
+      httpclient:
+        enabled: true
+        max-connections: 400
+        max-connections-per-route: 100
+        connection-timeout: 2000
+        connection-timer-repeat: 3000
+      compression:
+        request:
+          enabled: true
+          mime-types: application/json
+        response:
+          enabled: true
     loadbalancer:
       enabled: true
+      ribbon:
+        enabled: false
 
+# Server configuration
 server:
   port: 18083
   tomcat:
@@ -44,58 +82,132 @@ server:
       min-spare: 100
     accept-count: 300
     max-connections: 10000
+    connection-timeout: 20000
+    max-keep-alive-requests: 200
   http2:
     enabled: true
+  compression:
+    enabled: true
+    mime-types: application/json,text/html
 
+# Eureka configuration
 eureka:
   client:
     service-url:
       defaultZone: http://eureka-server-ms:8761/eureka/
     healthcheck:
       enabled: true
+    registry-fetch-interval-seconds: 10
+    initial-instance-info-replication-interval-seconds: 10
   instance:
     prefer-ip-address: false
     hostname: micro-comment-ms
     instance-id: ${spring.application.name}:${spring.application.instance-id:${random.value}}
     lease-renewal-interval-in-seconds: 10
     lease-expiration-duration-in-seconds: 30
+    metadata-map:
+      version: 1.0.0
+      cache-enabled: true
 
+# Actuator/Prometheus configuration
 management:
   endpoints:
     web:
       exposure:
-        include: health,info,prometheus,metrics
+        include: health,info,prometheus,metrics,caches,threaddump
   endpoint:
     health:
       show-details: always
+      probes:
+        enabled: true
     prometheus:
+      enabled: true
+    caches:
       enabled: true
   metrics:
     export:
       prometheus:
         enabled: true
+    tags:
+      application: ${spring.application.name}
+      service: comment-service
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+    cache:
+      metric-names: comments,postComments,userComments
+  health:
+    circuitbreakers:
+      enabled: true
 
+# Feign + Resilience4j integration
 feign:
   circuitbreaker:
     enabled: true
+    alphanumeric-ids:
+      enabled: true
 
+# Resilience4j configuration
 resilience4j:
   timelimiter:
     instances:
       default:
-        timeout-duration: 10s
+        timeout-duration: 5s
+        cancel-running-future: true
+  
   circuitbreaker:
     instances:
       default:
         register-health-indicator: true
-        sliding-window-size: 10
-        minimum-number-of-calls: 5
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 20
+        minimum-number-of-calls: 10
         failure-rate-threshold: 50
         slow-call-rate-threshold: 50
-        slow-call-duration-threshold: 5s
-        wait-duration-in-open-state: 10s
+        slow-call-duration-threshold: 3s
+        wait-duration-in-open-state: 15s
+        permitted-number-of-calls-in-half-open-state: 5
+        automatic-transition-from-open-to-half-open-enabled: true
+        record-exceptions:
+          - java.net.ConnectException
+          - java.net.SocketTimeoutException
+          - java.util.concurrent.TimeoutException
+        ignore-exceptions:
+          - java.lang.IllegalArgumentException
+  
   retry:
     instances:
       default:
-        maxAttempts: 2
-        waitDuration: 200ms
+        maxAttempts: 3
+        waitDuration: 500ms
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+        retry-exceptions:
+          - java.net.ConnectException
+          - java.net.SocketTimeoutException
+  
+  bulkhead:
+    instances:
+      default:
+        max-concurrent-calls: 100
+        max-wait-duration: 1000ms
+  
+  thread-pool-bulkhead:
+    instances:
+      default:
+        max-thread-pool-size: 50
+        core-thread-pool-size: 25
+        queue-capacity: 100
+        keep-alive-duration: 20ms
+
+# Logging configuration
+logging:
+  level:
+    com.mstcc.commentms: INFO
+    org.springframework.cloud.openfeign: DEBUG
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
+    org.springframework.cache: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

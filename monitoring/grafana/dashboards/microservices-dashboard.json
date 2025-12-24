@@ -401,7 +401,7 @@
           "refId": "A"
         }
       ],
-      "title": "✅ Taxa de Sucesso (%)",
+      "title": " Taxa de Sucesso (%)",
       "type": "timeseries"
     },
     {
@@ -539,7 +539,7 @@
           "refId": "A"
         }
       ],
-      "title": "🚀 Throughput Total",
+      "title": " Throughput Total",
       "type": "gauge"
     },
     {

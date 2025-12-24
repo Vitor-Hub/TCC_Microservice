@@ -1,31 +1,46 @@
 spring:
   application:
     name: like-ms
+  
+  # Database configuration with optimized connection pool
   datasource:
     url: jdbc:postgresql://like-ms-db:5432/likedb
     username: like
     password: like123
     driver-class-name: org.postgresql.Driver
     hikari:
-      maximum-pool-size: 50
-      minimum-idle: 10
-      connection-timeout: 30000
+      maximum-pool-size: 100          # Increased from 50 - supports more concurrent operations
+      minimum-idle: 40                # Increased from 20 - maintains ready connections
+      connection-timeout: 5000
       idle-timeout: 300000
       max-lifetime: 1800000
       auto-commit: false
       connection-test-query: SELECT 1
       validation-timeout: 3000
+      leak-detection-threshold: 60000 # NEW - detects connection leaks
+      pool-name: LikeHikariPool       # NEW - identifies pool in logs
+  
+  # JPA/Hibernate optimizations
   jpa:
     hibernate:
       ddl-auto: update
     show-sql: false
+    open-in-view: false               # NEW - prevents lazy loading issues in async
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         jdbc:
-          batch_size: 20
+          batch_size: 30              # Increased from 20
+          fetch_size: 50              # NEW - optimizes result set fetching
         order_inserts: true
         order_updates: true
+        connection:
+          provider_disables_autocommit: true  # NEW - performance optimization
+        query:
+          in_clause_parameter_padding: true   # NEW - query plan cache optimization
+        generate_statistics: false    # NEW - disable in production
+  
+  # Feign client optimizations
   cloud:
     openfeign:
       client:
@@ -33,69 +48,154 @@ spring:
           default:
             connectTimeout: 2000
             readTimeout: 4000
+            loggerLevel: basic        # NEW - adds logging
+      httpclient:
+        enabled: true                 # NEW - uses Apache HTTP client (better than default)
+        max-connections: 400          # NEW - connection pool for Feign
+        max-connections-per-route: 100 # NEW - per-service limit
+        connection-timeout: 2000
+        connection-timer-repeat: 3000
+      compression:
+        request:
+          enabled: true               # NEW - compresses requests
+          mime-types: application/json
+        response:
+          enabled: true               # NEW - compresses responses
     loadbalancer:
       enabled: true
+      ribbon:
+        enabled: false                # NEW - use Spring Cloud LoadBalancer (not Ribbon)
 
+# Server configuration optimized for high throughput
 server:
   port: 18084
   tomcat:
     threads:
-      max: 400
+      max: 400                        # Aligns with async pool + Feign pool
       min-spare: 100
     accept-count: 300
     max-connections: 10000
+    connection-timeout: 20000         # NEW - 20s timeout
+    max-keep-alive-requests: 200      # NEW - reuses connections
   http2:
     enabled: true
+  compression:
+    enabled: true                     # NEW - enables response compression
+    mime-types: application/json,text/html
 
+# Eureka configuration
 eureka:
   client:
     service-url:
       defaultZone: http://eureka-server-ms:8761/eureka/
     healthcheck:
       enabled: true
+    registry-fetch-interval-seconds: 10  # NEW - updates service list faster
+    initial-instance-info-replication-interval-seconds: 10  # NEW
   instance:
     prefer-ip-address: false
     hostname: micro-like-ms
     instance-id: ${spring.application.name}:${spring.application.instance-id:${random.value}}
     lease-renewal-interval-in-seconds: 10
     lease-expiration-duration-in-seconds: 30
+    metadata-map:
+      version: 1.0.0                  # NEW - useful for blue/green deployments
 
+# Actuator/Prometheus configuration
 management:
   endpoints:
     web:
       exposure:
-        include: health,info,prometheus,metrics
+        include: health,info,prometheus,metrics,threaddump,heapdump  # NEW - added thread/heap dumps
   endpoint:
     health:
       show-details: always
+      probes:
+        enabled: true                 # NEW - K8s liveness/readiness probes
     prometheus:
       enabled: true
   metrics:
     export:
       prometheus:
         enabled: true
+    tags:
+      application: ${spring.application.name}  # NEW - tags for Grafana
+      service: like-service
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true    # NEW - detailed latency metrics
+  health:
+    circuitbreakers:
+      enabled: true                   # NEW - circuit breaker health indicator
 
+# Feign + Resilience4j integration
 feign:
   circuitbreaker:
     enabled: true
+    alphanumeric-ids:
+      enabled: true                   # NEW - cleaner circuit breaker names
 
+# Resilience4j configuration - tuned for async operations
 resilience4j:
   timelimiter:
     instances:
       default:
-        timeout-duration: 10s
+        timeout-duration: 5s          # Reduced from 10s - fail faster
+        cancel-running-future: true   # NEW - cancels hung futures
+  
   circuitbreaker:
     instances:
       default:
         register-health-indicator: true
-        sliding-window-size: 10
-        minimum-number-of-calls: 5
+        sliding-window-type: COUNT_BASED  # NEW - explicit type
+        sliding-window-size: 20       # Increased from 10 - better statistics
+        minimum-number-of-calls: 10   # Increased from 5 - more samples
         failure-rate-threshold: 50
         slow-call-rate-threshold: 50
-        slow-call-duration-threshold: 5s
-        wait-duration-in-open-state: 10s
+        slow-call-duration-threshold: 3s  # Reduced from 5s
+        wait-duration-in-open-state: 15s  # Increased from 10s - longer recovery
+        permitted-number-of-calls-in-half-open-state: 5  # NEW
+        automatic-transition-from-open-to-half-open-enabled: true  # NEW
+        record-exceptions:            # NEW - what counts as failure
+          - java.net.ConnectException
+          - java.net.SocketTimeoutException
+          - java.util.concurrent.TimeoutException
+        ignore-exceptions:            # NEW - what doesn't count
+          - java.lang.IllegalArgumentException
+  
   retry:
     instances:
       default:
-        maxAttempts: 2
-        waitDuration: 200ms
+        maxAttempts: 3                # Increased from 2
+        waitDuration: 500ms           # Increased from 200ms - less aggressive
+        enable-exponential-backoff: true  # NEW - exponential backoff
+        exponential-backoff-multiplier: 2  # NEW
+        retry-exceptions:             # NEW - only retry on these
+          - java.net.ConnectException
+          - java.net.SocketTimeoutException
+  
+  # NEW - Bulkhead pattern to prevent resource exhaustion
+  bulkhead:
+    instances:
+      default:
+        max-concurrent-calls: 100     # Limits concurrent external calls
+        max-wait-duration: 1000ms
+  
+  thread-pool-bulkhead:
+    instances:
+      default:
+        max-thread-pool-size: 50
+        core-thread-pool-size: 25
+        queue-capacity: 100
+        keep-alive-duration: 20ms
+
+# NEW - Logging configuration
+logging:
+  level:
+    com.mstcc.likesms: INFO
+    org.springframework.cloud.openfeign: DEBUG  # Feign client logging
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

@@ -13,8 +13,8 @@ spring:
           lower-case-service-id: true
 
       httpclient:
-        connect-timeout: 5000
-        response-timeout: 15s
+        connect-timeout: 2000
+        response-timeout: 5s
         pool:
           type: FIXED
           max-connections: 500
