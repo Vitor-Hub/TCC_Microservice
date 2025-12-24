@@ -9,16 +9,16 @@ spring:
     gateway:
       discovery:
         locator:
-          enabled: true
+          enabled: false
           lower-case-service-id: true
 
       httpclient:
         connect-timeout: 2000
-        response-timeout: 5s
+        response-timeout: 15s
         pool:
           type: FIXED
-          max-connections: 500
-          acquire-timeout: 45000
+          max-connections: 2000
+          acquire-timeout: 90000
 
       routes:
         # User Service Route
@@ -27,19 +27,19 @@ spring:
           predicates:
             - Path=/user-ms/**
           filters:
-            - StripPrefix=1
+            - RewritePath=/user-ms(?<segment>/?.*), $\{segment}
             - name: CircuitBreaker
               args:
                 name: userServiceCB
                 fallbackUri: forward:/fallback/user
 
-        # Post Service Route (with Circuit Breaker)
+        # Post Service Route
         - id: post-route
           uri: lb://POST-MS
           predicates:
             - Path=/post-ms/**
           filters:
-            - StripPrefix=1
+            - RewritePath=/post-ms(?<segment>/?.*), $\{segment}
             - name: CircuitBreaker
               args:
                 name: postServiceCB
@@ -51,7 +51,7 @@ spring:
           predicates:
             - Path=/comment-ms/**
           filters:
-            - StripPrefix=1
+            - RewritePath=/comment-ms(?<segment>/?.*), $\{segment}
             - name: CircuitBreaker
               args:
                 name: commentServiceCB
@@ -63,7 +63,7 @@ spring:
           predicates:
             - Path=/like-ms/**
           filters:
-            - StripPrefix=1
+            - RewritePath=/like-ms(?<segment>/?.*), $\{segment}
             - name: CircuitBreaker
               args:
                 name: likeServiceCB
@@ -75,7 +75,7 @@ spring:
           predicates:
             - Path=/friendship-ms/**
           filters:
-            - StripPrefix=1
+            - RewritePath=/friendship-ms(?<segment>/?.*), $\{segment}
             - name: CircuitBreaker
               args:
                 name: friendshipServiceCB
@@ -133,8 +133,9 @@ resilience4j:
         baseConfig: default
       postServiceCB:
         baseConfig: default
-        waitDurationInOpenState: 15s
-        failureRateThreshold: 40
+        waitDurationInOpenState: 30s
+        failureRateThreshold: 70
+        minimumNumberOfCalls: 15
       commentServiceCB:
         baseConfig: default
       likeServiceCB:
@@ -151,7 +152,7 @@ resilience4j:
         baseConfig: default
       postServiceCB:
         baseConfig: default
-        timeoutDuration: 20s
+        timeoutDuration: 40s
       commentServiceCB:
         baseConfig: default
       likeServiceCB:

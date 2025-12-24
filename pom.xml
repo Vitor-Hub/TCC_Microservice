@@ -6,7 +6,7 @@
 
     <groupId>com.mstcc</groupId>
     <artifactId>tcc-microservices-parent</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
     <packaging>pom</packaging>
     <name>tcc-microservices-parent</name>
     <description>POM parent for TCC microservices</description>

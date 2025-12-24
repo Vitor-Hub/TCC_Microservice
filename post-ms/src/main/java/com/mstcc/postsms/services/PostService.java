@@ -9,6 +9,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -86,16 +88,20 @@ public class PostService {
     }
 
     /**
-     * Retrieves all posts with user and comments populated
+     * Retrieves recent posts with user and comments populated
      * Uses parallel processing for better performance
-     * @return list of all post DTOs
+     * @param limit maximum number of posts to return
+     * @return list of recent post DTOs
      */
-    @Cacheable(value = "allPosts")
-    public List<PostDTO> getAllPosts() {
-        logger.info("Fetching all posts");
+    @Cacheable(value = "allPosts", key = "'feed_recent_' + #limit")
+    public List<PostDTO> getRecentPosts(int limit) {
+        logger.info("Fetching recent {} posts for feed", limit);
         long startTime = System.currentTimeMillis();
         
-        List<Post> posts = postRepository.findAll();
+        List<Post> posts = postRepository
+            .findAll(PageRequest.of(0, limit, Sort.by(Sort.Direction.DESC, "createdAt")))
+            .getContent();
+        
         logger.info("Found {} posts in database", posts.size());
         
         // Process all posts in parallel
@@ -120,7 +126,7 @@ public class PostService {
             .collect(Collectors.toList());
         
         long duration = System.currentTimeMillis() - startTime;
-        logger.info("All posts fetched in {}ms - returned: {}/{}", 
+        logger.info("Recent posts fetched in {}ms - returned: {}/{}", 
                    duration, result.size(), posts.size());
         
         return result;
