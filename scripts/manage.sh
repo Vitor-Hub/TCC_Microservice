@@ -33,23 +33,22 @@ show_menu() {
     echo "  2) Deploy System"
     echo "  3) Fresh Start (Clean + Build + Deploy)"
     echo ""
-    echo -e "${CYAN}🔍 VALIDATION & MONITORING${NC}"
-    echo "  4) Validate Async Configuration"
-    echo "  5) Check System Health"
-    echo "  6) View Logs"
+    echo -e "${CYAN}🔍 MONITORING${NC}"
+    echo "  4) Check System Health"
+    echo "  5) View Logs"
     echo ""
     echo -e "${CYAN}🧪 TESTING${NC}"
-    echo "  7) Run Load Test"
-    echo "  8) Generate Performance Report"
+    echo "  6) Run Load Test"
+    echo "  7) Generate Performance Report"
     echo ""
     echo -e "${CYAN}🛠️  MAINTENANCE${NC}"
-    echo "  9) Stop All Services"
-    echo "  10) Clean Everything"
+    echo "  8) Stop All Services"
+    echo "  9) Clean Everything"
     echo ""
     echo -e "${CYAN}📚 QUICK ACCESS${NC}"
-    echo "  11) Open Grafana Dashboard"
-    echo "  12) Open Eureka Dashboard"
-    echo "  13) Open Prometheus"
+    echo "  10) Open Grafana Dashboard"
+    echo "  11) Open Eureka Dashboard"
+    echo "  12) Open Prometheus"
     echo ""
     echo "  0) Exit"
     echo ""
@@ -173,7 +172,7 @@ fresh_start() {
     docker-compose -f docker-compose.monitoring.yml down -v 2>/dev/null || true
     
     echo -e "${CYAN}[2/4] Removing old images...${NC}"
-    docker images | grep "mstcc" | awk '{print $3}' | xargs docker rmi -f 2>/dev/null || true
+    docker images | grep "microsservice" | awk '{print $3}' | xargs docker rmi -f 2>/dev/null || true
     
     echo -e "${CYAN}[3/4] Building services...${NC}"
     build_all
@@ -183,175 +182,7 @@ fresh_start() {
 }
 
 # ═══════════════════════════════════════════════════════════════
-# 4. VALIDATE ASYNC CONFIGURATION
-# ═══════════════════════════════════════════════════════════════
-validate_async() {
-    echo -e "${BLUE}╔════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${BLUE}║  🔍 VALIDATING ASYNC CONFIGURATION                     ║${NC}"
-    echo -e "${BLUE}╚════════════════════════════════════════════════════════╝${NC}"
-    echo ""
-    
-    SERVICES=("like-ms" "post-ms" "comment-ms" "friendship-ms")
-    
-    echo -e "${CYAN}Checking source code for async patterns...${NC}"
-    echo ""
-    
-    for service in "${SERVICES[@]}"; do
-        echo -e "${YELLOW}Checking $service:${NC}"
-        
-        SERVICE_DIR="$PROJECT_ROOT/$service/src/main/java"
-        
-        # Check AsyncConfig
-        if find "$SERVICE_DIR" -name "AsyncConfig.java" | grep -q .; then
-            echo -e "  ${GREEN}✓ AsyncConfig.java found${NC}"
-        else
-            echo -e "  ${RED}✗ AsyncConfig.java NOT found${NC}"
-        fi
-        
-        # Check @Async annotation
-        if grep -r "@Async" "$SERVICE_DIR" >/dev/null 2>&1; then
-            echo -e "  ${GREEN}✓ @Async annotations found${NC}"
-        else
-            echo -e "  ${RED}✗ @Async annotations NOT found${NC}"
-        fi
-        
-        # Check CompletableFuture
-        if grep -r "CompletableFuture" "$SERVICE_DIR" >/dev/null 2>&1; then
-            echo -e "  ${GREEN}✓ CompletableFuture usage found${NC}"
-        else
-            echo -e "  ${RED}✗ CompletableFuture NOT found${NC}"
-        fi
-        
-        # Check AsyncHelper
-        if find "$SERVICE_DIR" -name "*AsyncHelper.java" | grep -q .; then
-            echo -e "  ${GREEN}✓ AsyncHelper class found${NC}"
-        else
-            echo -e "  ${RED}✗ AsyncHelper class NOT found${NC}"
-        fi
-        
-        echo ""
-    done
-    
-    echo -e "${CYAN}Checking runtime thread pools...${NC}"
-    echo ""
-    
-    PORTS=("18084:like-ms:Like" "18082:post-ms:Post" "18083:comment-ms:Comment" "18085:friendship-ms:Friendship")
-    
-    for port_info in "${PORTS[@]}"; do
-        IFS=':' read -r port container_suffix display_name <<< "$port_info"
-        
-        echo -e "${YELLOW}$display_name Service (port $port):${NC}"
-        
-        # Check thread pool metrics
-        METRICS=$(curl -s "http://localhost:${port}/actuator/metrics/executor.pool.size" 2>/dev/null || echo "{}")
-        
-        if echo "$METRICS" | grep -q "measurements"; then
-            POOL_SIZE=$(echo "$METRICS" | grep -o '"value":[0-9]*' | head -1 | cut -d':' -f2)
-            if [ -n "$POOL_SIZE" ] && [ "$POOL_SIZE" -gt 0 ]; then
-                echo -e "  ${GREEN}✓ Thread pool active: $POOL_SIZE threads${NC}"
-            else
-                echo -e "  ${YELLOW}⚠ Thread pool size: $POOL_SIZE (may be idle)${NC}"
-            fi
-        else
-            echo -e "  ${YELLOW}⚠ Service not responding or metrics unavailable${NC}"
-        fi
-        
-        # Check if service logs show async threads
-        CONTAINER_NAME="micro-${container_suffix}"
-        
-        if docker ps --format '{{.Names}}' | grep -q "$CONTAINER_NAME"; then
-            if docker logs "$CONTAINER_NAME" 2>&1 | grep -q "Async-"; then
-                echo -e "  ${GREEN}✓ Async threads detected in logs${NC}"
-            else
-                echo -e "  ${YELLOW}⚠ No async activity in logs yet${NC}"
-            fi
-        else
-            echo -e "  ${YELLOW}⚠ Container '$CONTAINER_NAME' not found${NC}"
-            echo -e "  ${CYAN}  Available containers:${NC}"
-            docker ps --format '{{.Names}}' | grep "micro-" | sed 's/^/    - /'
-        fi
-        
-        echo ""
-    done
-    
-    echo -e "${CYAN}Testing parallel execution...${NC}"
-    echo ""
-    
-    # Create a test like
-    echo -e "${YELLOW}Creating a test like to verify parallel calls...${NC}"
-    
-    START_TIME=$(date +%s)
-    
-    RESPONSE=$(curl -s -X POST http://localhost:18765/api/likes \
-        -H "Content-Type: application/json" \
-        -d '{
-            "userId": 1,
-            "postId": 1,
-            "commentId": null
-        }' 2>/dev/null || echo "ERROR")
-    
-    END_TIME=$(date +%s)
-    DURATION=$((END_TIME - START_TIME))
-    
-    if [ "$RESPONSE" != "ERROR" ] && [ "$RESPONSE" != "" ]; then
-        echo -e "  ${GREEN}✓ Like created in ${DURATION}s${NC}"
-        
-        if [ "$DURATION" -lt 5 ]; then
-            echo -e "  ${GREEN}✓ Response time indicates parallel execution (<5s)${NC}"
-        else
-            echo -e "  ${YELLOW}⚠ Response time slow (${DURATION}s) - may be sequential${NC}"
-        fi
-    else
-        echo -e "  ${YELLOW}⚠ Could not create test like (services may not be fully initialized)${NC}"
-        echo -e "  ${CYAN}  Tip: Run option 2 (Deploy System) first, then wait 2 minutes${NC}"
-    fi
-    
-    echo ""
-    echo -e "${CYAN}╔════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${CYAN}║  📋 VALIDATION SUMMARY                                 ║${NC}"
-    echo -e "${CYAN}╚════════════════════════════════════════════════════════╝${NC}"
-    echo ""
-    echo -e "${GREEN}✓ Source Code Validation:${NC}"
-    echo "  • AsyncConfig classes found in all services"
-    echo "  • @Async annotations present"
-    echo "  • CompletableFuture implementations confirmed"
-    echo "  • AsyncHelper classes implemented"
-    echo ""
-    echo -e "${YELLOW}⚠  Runtime Validation:${NC}"
-    echo "  • Thread pool metrics available"
-    echo "  • Services may need requests to activate async threads"
-    echo ""
-    echo -e "${CYAN}💡 How to verify async is working:${NC}"
-    echo ""
-    echo "1. Create some test data first:"
-    echo "   curl -X POST http://localhost:18765/api/users -H 'Content-Type: application/json' \\"
-    echo "     -d '{\"name\":\"Test User\",\"email\":\"test@test.com\",\"password\":\"pass\"}'"
-    echo ""
-    echo "2. Create a post:"
-    echo "   curl -X POST http://localhost:18765/api/posts -H 'Content-Type: application/json' \\"
-    echo "     -d '{\"user\":{\"id\":1},\"content\":\"Test post\"}'"
-    echo ""
-    echo "3. Create a like (this will trigger async validation):"
-    echo "   time curl -X POST http://localhost:18765/api/likes -H 'Content-Type: application/json' \\"
-    echo "     -d '{\"userId\":1,\"postId\":1}'"
-    echo ""
-    echo "4. Check logs for async threads:"
-    echo "   docker logs micro-like-ms | grep 'LikeAsync-'"
-    echo ""
-    echo "Expected behavior:"
-    echo "  • WITHOUT async: ~7 seconds (sequential: 2s + 3s + 2s)"
-    echo "  • WITH async: ~3 seconds (parallel: max(2s, 3s, 2s))"
-    echo ""
-    echo "5. View real-time logs:"
-    echo "   docker logs -f micro-like-ms"
-    echo "   Then create a like and watch for parallel '[LikeAsync-*]' threads"
-    echo ""
-    
-    pause
-}
-
-# ═══════════════════════════════════════════════════════════════
-# 5. CHECK SYSTEM HEALTH
+# 4. CHECK SYSTEM HEALTH
 # ═══════════════════════════════════════════════════════════════
 check_health() {
     echo -e "${BLUE}╔════════════════════════════════════════════════════════╗${NC}"
@@ -400,7 +231,7 @@ check_health_quick() {
 }
 
 # ═══════════════════════════════════════════════════════════════
-# 6. VIEW LOGS
+# 5. VIEW LOGS
 # ═══════════════════════════════════════════════════════════════
 view_logs() {
     echo -e "${BLUE}╔════════════════════════════════════════════════════════╗${NC}"
@@ -414,23 +245,25 @@ view_logs() {
     echo "  4) Friendship Service"
     echo "  5) User Service"
     echo "  6) Gateway"
+    echo "  7) Eureka"
     echo "  0) Back"
     echo ""
     read -p "Option: " log_option
     
     case $log_option in
-        1) docker logs -f --tail=100 micro-like-ms ;;
-        2) docker logs -f --tail=100 micro-post-service ;;
-        3) docker logs -f --tail=100 micro-comment-ms ;;
-        4) docker logs -f --tail=100 micro-friendship-ms ;;
-        5) docker logs -f --tail=100 micro-user-ms ;;
-        6) docker logs -f --tail=100 micro-gateway-service ;;
+        1) docker logs -f --tail=100 mstcc_like_service ;;
+        2) docker logs -f --tail=100 mstcc_post_service ;;
+        3) docker logs -f --tail=100 mstcc_comment_service ;;
+        4) docker logs -f --tail=100 mstcc_friendship_service ;;
+        5) docker logs -f --tail=100 mstcc_user_service ;;
+        6) docker logs -f --tail=100 mstcc_gateway ;;
+        7) docker logs -f --tail=100 mstcc_eureka_server ;;
         0) return ;;
     esac
 }
 
 # ═══════════════════════════════════════════════════════════════
-# 7. RUN LOAD TEST
+# 6. RUN LOAD TEST
 # ═══════════════════════════════════════════════════════════════
 run_load_test() {
     echo -e "${BLUE}╔════════════════════════════════════════════════════════╗${NC}"
@@ -445,17 +278,12 @@ run_load_test() {
         return
     fi
     
-    K6_SCRIPT="$SCRIPT_DIR/k6-load-test-optimized.js"
+    K6_SCRIPT="$SCRIPT_DIR/k6-load-test.js"
     
-    # Check if optimized script exists, fallback to old one
     if [ ! -f "$K6_SCRIPT" ]; then
-        K6_SCRIPT="$SCRIPT_DIR/k6-load-test.js"
-        if [ ! -f "$K6_SCRIPT" ]; then
-            echo -e "${RED}✗ K6 script not found!${NC}"
-            echo "Expected: $SCRIPT_DIR/k6-load-test-optimized.js"
-            pause
-            return
-        fi
+        echo -e "${RED}✗ K6 script not found: $K6_SCRIPT${NC}"
+        pause
+        return
     fi
     
     RESULTS_DIR="$SCRIPT_DIR/test-results"
@@ -463,26 +291,26 @@ run_load_test() {
     
     mkdir -p "$RESULTS_DIR"
     
-    echo -e "${YELLOW}Using script: $(basename $K6_SCRIPT)${NC}"
     echo -e "${YELLOW}Running K6 load test...${NC}"
+    echo -e "${CYAN}Test duration: ~18 minutes${NC}"
+    echo -e "${CYAN}Results will be saved to: $RESULTS_DIR${NC}"
     echo ""
     
     k6 run \
         --out json="$RESULTS_DIR/test_${TIMESTAMP}.json" \
         --summary-export="$RESULTS_DIR/summary_${TIMESTAMP}.json" \
-        -e BASE_URL="http://localhost:18765" \
         "$K6_SCRIPT"
     
     echo ""
     echo -e "${GREEN}✓ Test completed!${NC}"
-    echo "Results saved to: $RESULTS_DIR"
+    echo "Results saved to: $RESULTS_DIR/test_${TIMESTAMP}.json"
     echo ""
     
     pause
 }
 
 # ═══════════════════════════════════════════════════════════════
-# 8. GENERATE REPORT
+# 7. GENERATE REPORT
 # ═══════════════════════════════════════════════════════════════
 generate_report() {
     echo -e "${BLUE}╔════════════════════════════════════════════════════════╗${NC}"
@@ -506,7 +334,7 @@ generate_report() {
 }
 
 # ═══════════════════════════════════════════════════════════════
-# 9. STOP ALL
+# 8. STOP ALL
 # ═══════════════════════════════════════════════════════════════
 stop_all() {
     echo -e "${BLUE}╔════════════════════════════════════════════════════════╗${NC}"
@@ -528,7 +356,7 @@ stop_all() {
 }
 
 # ═══════════════════════════════════════════════════════════════
-# 10. CLEAN EVERYTHING
+# 9. CLEAN EVERYTHING
 # ═══════════════════════════════════════════════════════════════
 clean_all() {
     echo -e "${BLUE}╔════════════════════════════════════════════════════════╗${NC}"
@@ -548,7 +376,7 @@ clean_all() {
     docker-compose down -v 2>/dev/null || true
     docker-compose -f docker-compose.db.yml down -v 2>/dev/null || true
     docker-compose -f docker-compose.monitoring.yml down -v 2>/dev/null || true
-    docker images | grep "mstcc" | awk '{print $3}' | xargs docker rmi -f 2>/dev/null || true
+    docker images | grep "microsservice" | awk '{print $3}' | xargs docker rmi -f 2>/dev/null || true
     
     echo -e "${GREEN}✓ Everything cleaned${NC}"
     echo ""
@@ -557,16 +385,16 @@ clean_all() {
 }
 
 # ═══════════════════════════════════════════════════════════════
-# 11-13. QUICK ACCESS
+# 10-12. QUICK ACCESS
 # ═══════════════════════════════════════════════════════════════
 open_grafana() {
-    echo "Opening Grafana..."
+    echo "Opening Grafana (login: admin/admin)..."
     open http://localhost:3000 2>/dev/null || xdg-open http://localhost:3000 2>/dev/null || echo "Open: http://localhost:3000"
     pause
 }
 
 open_eureka() {
-    echo "Opening Eureka..."
+    echo "Opening Eureka Dashboard..."
     open http://localhost:8761 2>/dev/null || xdg-open http://localhost:8761 2>/dev/null || echo "Open: http://localhost:8761"
     pause
 }
@@ -596,16 +424,15 @@ while true; do
         1) build_all ;;
         2) deploy_system ;;
         3) fresh_start ;;
-        4) validate_async ;;
-        5) check_health ;;
-        6) view_logs ;;
-        7) run_load_test ;;
-        8) generate_report ;;
-        9) stop_all ;;
-        10) clean_all ;;
-        11) open_grafana ;;
-        12) open_eureka ;;
-        13) open_prometheus ;;
+        4) check_health ;;
+        5) view_logs ;;
+        6) run_load_test ;;
+        7) generate_report ;;
+        8) stop_all ;;
+        9) clean_all ;;
+        10) open_grafana ;;
+        11) open_eureka ;;
+        12) open_prometheus ;;
         0) echo -e "${GREEN}Goodbye!${NC}"; exit 0 ;;
         *) echo -e "${RED}Invalid option${NC}"; sleep 1 ;;
     esac

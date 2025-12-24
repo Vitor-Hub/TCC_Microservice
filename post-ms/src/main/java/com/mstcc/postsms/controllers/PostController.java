@@ -31,10 +31,9 @@ public class PostController {
      * @return list of all posts
      */
     @GetMapping
-    public ResponseEntity<List<PostDTO>> getAllPosts() {
-        logger.info("GET /api/posts - Fetching all posts");
-        List<PostDTO> posts = postService.getAllPosts();
-        logger.info("Returning {} posts", posts.size());
+    public ResponseEntity<List<PostDTO>> getAllPosts(
+        @RequestParam(defaultValue = "20") int limit) {
+        List<PostDTO> posts = postService.getRecentPosts(Math.min(limit, 100));
         return ResponseEntity.ok(posts);
     }
 
