@@ -10,33 +10,31 @@ import org.springframework.context.annotation.Configuration;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Cache configuration using Caffeine
- * Optimizes read operations for posts
+ * Cache configuration for Post microservice using Caffeine
+ * Provides high-performance caching with TTL and size limits
  */
 @Configuration
 @EnableCaching
 public class CacheConfig {
 
     /**
-     * Configure Caffeine cache manager with TTL and size limits
+     * Configures Caffeine cache manager with optimized settings
+     * @return configured cache manager
      */
     @Bean
     public CacheManager cacheManager() {
-        CaffeineCacheManager cacheManager = new CaffeineCacheManager("posts");
-        cacheManager.setCaffeine(caffeineCacheBuilder());
+        CaffeineCacheManager cacheManager = new CaffeineCacheManager(
+            "posts",      // Cache for getPostById()
+            "allPosts",   // Cache for getAllPosts()
+            "userPosts"   // Cache for getPostsByUser()
+        );
+        
+        cacheManager.setCaffeine(Caffeine.newBuilder()
+            .maximumSize(5000)                     // Max 5k entries (posts are larger than users)
+            .expireAfterWrite(15, TimeUnit.MINUTES) // TTL 15 minutes
+            .expireAfterAccess(10, TimeUnit.MINUTES) // Evict if not accessed for 10 min
+            .recordStats());                        // Enable statistics for monitoring
+        
         return cacheManager;
-    }
-
-    /**
-     * Caffeine cache builder configuration
-     * - Maximum 1000 entries per cache
-     * - TTL of 5 minutes
-     * - Automatic cleanup of expired entries
-     */
-    Caffeine<Object, Object> caffeineCacheBuilder() {
-        return Caffeine.newBuilder()
-                .maximumSize(1000)
-                .expireAfterWrite(5, TimeUnit.MINUTES)
-                .recordStats();
     }
 }

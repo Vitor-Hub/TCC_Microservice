@@ -101,7 +101,7 @@ export const options = {
 // ═══════════════════════════════════════════════════════════════
 // 🌐 CONFIGURAÇÃO BASE
 // ═══════════════════════════════════════════════════════════════
-const BASE_URL = __ENV.BASE_URL || 'http://localhost:8765';
+const BASE_URL = 'http://localhost:18765';  // CORRIGIDO: porta 18765
 
 // SharedArray para IDs criados (compartilhado entre VUs)
 const sharedUserIds = new SharedArray('userIds', function() { return []; });
@@ -177,7 +177,7 @@ function createUser() {
   const payload = JSON.stringify({
     name: `User ${randomString(8)}`,
     email: randomEmail(),
-    bio: `Testando arquitetura de microsserviços - ${randomString(20)}`
+    password: 'test123'
   });
   
   const params = {
@@ -695,7 +695,7 @@ export function setup() {
     const payload = JSON.stringify({
       name: `Setup User ${i}`,
       email: `setup${i}_${Date.now()}@test.com`,
-      bio: `Initial user for load testing - ${i}`
+      password: 'test123'
     });
     
     const res = http.post(`${BASE_URL}/user-ms/api/users`, payload, {

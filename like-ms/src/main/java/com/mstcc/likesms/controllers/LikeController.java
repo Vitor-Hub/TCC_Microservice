@@ -28,20 +28,48 @@ public class LikeController {
 
     @GetMapping("/{id}")
     public ResponseEntity<Like> getLikeById(@PathVariable Long id) {
-        return likeService.findLikeById(id)
+        return likeService.getLikeById(id)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @PostMapping
     public ResponseEntity<Like> createLike(@RequestBody Like like) {
-        Like savedLike = likeService.saveLike(like);
+        Like savedLike = likeService.createAndValidateLike(like);
+        if (savedLike == null) {
+            return ResponseEntity.badRequest().build();
+        }
         return new ResponseEntity<>(savedLike, HttpStatus.CREATED);
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<Like> updateLike(@PathVariable Long id, @RequestBody Like likeDetails) {
+        return likeService.updateAndValidateLike(id, likeDetails)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteLike(@PathVariable Long id) {
         likeService.deleteLike(id);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/post/{postId}")
+    public ResponseEntity<List<Like>> getLikesByPostId(@PathVariable Long postId) {
+        List<Like> likes = likeService.findLikesByPostId(postId);
+        return ResponseEntity.ok(likes);
+    }
+
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<List<Like>> getLikesByUserId(@PathVariable Long userId) {
+        List<Like> likes = likeService.findLikesByUserId(userId);
+        return ResponseEntity.ok(likes);
+    }
+
+    @GetMapping("/comment/{commentId}")
+    public ResponseEntity<List<Like>> getLikesByCommentId(@PathVariable Long commentId) {
+        List<Like> likes = likeService.findLikesByCommentId(commentId);
+        return ResponseEntity.ok(likes);
     }
 }

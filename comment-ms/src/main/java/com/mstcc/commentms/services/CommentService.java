@@ -1,85 +1,207 @@
 package com.mstcc.commentms.services;
 
-import com.mstcc.commentms.dto.CommentDTO;
 import com.mstcc.commentms.dto.PostDTO;
 import com.mstcc.commentms.dto.UserDTO;
 import com.mstcc.commentms.entities.Comment;
-import com.mstcc.commentms.feignclients.PostFeignClient;
-import com.mstcc.commentms.feignclients.UserFeignClient;
 import com.mstcc.commentms.repositories.CommentRepository;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
+/**
+ * Service for managing Comment entities with async validation
+ * and parallel processing capabilities
+ */
 @Service
+@Transactional(readOnly = true)
 public class CommentService {
 
-    private final CommentRepository commentRepository;
-    private final UserFeignClient userFeignClient;
-    private final PostFeignClient postFeignClient;
+    private static final Logger logger = LoggerFactory.getLogger(CommentService.class);
+    private static final int VALIDATION_TIMEOUT_SECONDS = 5;
 
-    @Autowired
-    public CommentService(CommentRepository commentRepository, UserFeignClient userFeignClient, PostFeignClient postFeignClient) {
+    private final CommentRepository commentRepository;
+    private final CommentAsyncHelper asyncHelper;
+
+    public CommentService(CommentRepository commentRepository,
+                          CommentAsyncHelper asyncHelper) {
         this.commentRepository = commentRepository;
-        this.userFeignClient = userFeignClient;
-        this.postFeignClient = postFeignClient;
+        this.asyncHelper = asyncHelper;
     }
 
+    /**
+     * Creates a comment with parallel validation of user and post
+     * @param comment the comment entity to create
+     * @return the saved comment entity
+     * @throws RuntimeException if validation fails
+     */
+    @Transactional
+    @CacheEvict(value = {"comments", "postComments", "userComments"}, allEntries = true)
+    public Comment createAndValidateComment(Comment comment) {
+        long startTime = System.currentTimeMillis();
+        logger.info("Creating comment - userId: {}, postId: {}", 
+                   comment.getUserId(), comment.getPostId());
+        
+        try {
+            // Parallel validation of user and post
+            CompletableFuture<UserDTO> userFuture = asyncHelper.getUserAsync(comment.getUserId());
+            CompletableFuture<PostDTO> postFuture = asyncHelper.getPostAsync(comment.getPostId());
+            
+            // Wait for both validations with timeout
+            CompletableFuture.allOf(userFuture, postFuture)
+                .get(VALIDATION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            
+            comment.setCreatedAt(LocalDateTime.now());
+            Comment savedComment = commentRepository.save(comment);
+            
+            long duration = System.currentTimeMillis() - startTime;
+            logger.info("Comment created successfully in {}ms - commentId: {}", 
+                       duration, savedComment.getId());
+            
+            return savedComment;
+            
+        } catch (TimeoutException e) {
+            logger.error("Validation timeout after {}s", VALIDATION_TIMEOUT_SECONDS);
+            throw new RuntimeException("Validation timeout: external services took too long", e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            logger.error("Validation interrupted");
+            throw new RuntimeException("Validation interrupted", e);
+        } catch (ExecutionException e) {
+            logger.error("Validation failed: {}", e.getCause().getMessage());
+            throw new RuntimeException("Validation failed: " + e.getCause().getMessage(), e);
+        }
+    }
+
+    /**
+     * Retrieves a comment by ID
+     * @param id comment ID
+     * @return optional containing comment if found
+     */
+    @Cacheable(value = "comments", key = "#id")
     public Optional<Comment> getCommentById(Long id) {
+        logger.info("Fetching comment by id: {}", id);
         return commentRepository.findById(id);
     }
 
-    public List<Comment> getAllComments() {
-        return commentRepository.findAll();
+    /**
+     * Retrieves all comments for a post
+     * @param postId post ID
+     * @return list of comments for the post
+     */
+    @Cacheable(value = "postComments", key = "#postId")
+    public List<Comment> findCommentsByPostId(Long postId) {
+        logger.info("Fetching comments for postId: {}", postId);
+        long startTime = System.currentTimeMillis();
+        
+        List<Comment> comments = commentRepository.findByPostId(postId);
+        
+        long duration = System.currentTimeMillis() - startTime;
+        logger.info("Comments fetched in {}ms - postId: {}, count: {}", 
+                   duration, postId, comments.size());
+        
+        return comments;
     }
 
-    public void deleteComment(Long id) {
-        commentRepository.deleteById(id);
+    /**
+     * Retrieves all comments by a user
+     * @param userId user ID
+     * @return list of user's comments
+     */
+    @Cacheable(value = "userComments", key = "#userId")
+    public List<Comment> findCommentsByUserId(Long userId) {
+        logger.info("Fetching comments for userId: {}", userId);
+        long startTime = System.currentTimeMillis();
+        
+        List<Comment> comments = commentRepository.findByUserId(userId);
+        
+        long duration = System.currentTimeMillis() - startTime;
+        logger.info("Comments fetched in {}ms - userId: {}, count: {}", 
+                   duration, userId, comments.size());
+        
+        return comments;
     }
 
-    public Comment saveComment(Comment comment) {
-        validateUserAndPost(comment.getUserId(), comment.getPostId());
-        return commentRepository.save(comment);
-    }
-
-    private void validateUserAndPost(Long userId, Long postId) {
-        ResponseEntity<UserDTO> userResponse = userFeignClient.getUserById(userId);
-        ResponseEntity<PostDTO> postResponse = postFeignClient.getPostById(postId);
-
-        if (!userResponse.getStatusCode().is2xxSuccessful() || !postResponse.getStatusCode().is2xxSuccessful()) {
-            throw new RuntimeException("User or Post not found");
-        }
-    }
-
-    public Optional<CommentDTO> updateComment(Long id, CommentDTO commentDto) {
+    /**
+     * Updates a comment with parallel validation
+     * @param id comment ID
+     * @param commentDetails updated comment details
+     * @return optional containing updated comment
+     */
+    @Transactional
+    @Caching(evict = {
+        @CacheEvict(value = "comments", key = "#id"),
+        @CacheEvict(value = "postComments", allEntries = true),
+        @CacheEvict(value = "userComments", allEntries = true)
+    })
+    public Optional<Comment> updateAndValidateComment(Long id, Comment commentDetails) {
+        logger.info("Updating comment - id: {}", id);
+        
         return commentRepository.findById(id).map(comment -> {
-            comment.setContent(commentDto.getContent());
-            Comment updatedComment = commentRepository.save(comment);
-            return convertToDto(updatedComment);
+            long startTime = System.currentTimeMillis();
+            
+            try {
+                CompletableFuture<UserDTO> userFuture = asyncHelper.getUserAsync(commentDetails.getUserId());
+                CompletableFuture<PostDTO> postFuture = asyncHelper.getPostAsync(commentDetails.getPostId());
+
+                CompletableFuture.allOf(userFuture, postFuture)
+                    .get(VALIDATION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+                
+                comment.setContent(commentDetails.getContent());
+                comment.setUserId(commentDetails.getUserId());
+                comment.setPostId(commentDetails.getPostId());
+                
+                Comment updated = commentRepository.save(comment);
+                
+                long duration = System.currentTimeMillis() - startTime;
+                logger.info("Comment updated successfully in {}ms", duration);
+                
+                return updated;
+                
+            } catch (Exception e) {
+                logger.error("Failed to update comment: {}", e.getMessage());
+                throw new RuntimeException("Failed to update comment: " + e.getMessage(), e);
+            }
         });
     }
 
-    private CommentDTO convertToDto(Comment comment) {
-        CommentDTO commentDto = new CommentDTO();
-        commentDto.setId(comment.getId());
-        commentDto.setContent(comment.getContent());
-        commentDto.setCreatedAt(comment.getCreatedAt());
-
-        ResponseEntity<UserDTO> userResponse = userFeignClient.getUserById(comment.getUserId());
-        if(userResponse.getStatusCode().is2xxSuccessful() && userResponse.getBody() != null) {
-            commentDto.setUser(userResponse.getBody());
+    /**
+     * Deletes a comment
+     * @param id comment ID
+     */
+    @Transactional
+    @CacheEvict(value = {"comments", "postComments", "userComments"}, allEntries = true)
+    public void deleteComment(Long id) {
+        logger.info("Deleting comment - id: {}", id);
+        
+        if (!commentRepository.existsById(id)) {
+            logger.warn("Comment not found for deletion - id: {}", id);
+            throw new IllegalArgumentException("Comment not found: " + id);
         }
-        ResponseEntity<PostDTO> postResponse = postFeignClient.getPostById(comment.getPostId());
-        if(postResponse.getStatusCode().is2xxSuccessful() && postResponse.getBody() != null) {
-            commentDto.setPost(postResponse.getBody());
-        }
-        return commentDto;
+        
+        commentRepository.deleteById(id);
+        logger.info("Comment deleted successfully - id: {}", id);
     }
 
-    public List<Comment> getCommentsByPostId(Long postId) {
-        return commentRepository.findByPostId(postId);
+    /**
+     * Retrieves all comments
+     * @return list of all comments
+     */
+    public List<Comment> findAllComments() {
+        logger.info("Fetching all comments");
+        List<Comment> comments = commentRepository.findAll();
+        logger.info("Returning {} comments", comments.size());
+        return comments;
     }
 }
