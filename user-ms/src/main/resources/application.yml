@@ -120,7 +120,8 @@ resilience4j:
     instances:
       default:
         timeout-duration: 5s
-  
+        cancel-running-future: true
+
   circuitbreaker:
     instances:
       default:
@@ -134,7 +135,13 @@ resilience4j:
         wait-duration-in-open-state: 15s
         permitted-number-of-calls-in-half-open-state: 5
         automatic-transition-from-open-to-half-open-enabled: true
-  
+        record-exceptions:
+          - java.net.ConnectException
+          - java.net.SocketTimeoutException
+          - java.util.concurrent.TimeoutException
+        ignore-exceptions:
+          - java.lang.IllegalArgumentException
+
   retry:
     instances:
       default:
@@ -142,6 +149,9 @@ resilience4j:
         waitDuration: 500ms
         enable-exponential-backoff: true
         exponential-backoff-multiplier: 2
+        retry-exceptions:
+          - java.net.ConnectException
+          - java.net.SocketTimeoutException
 
 # Logging configuration
 logging:

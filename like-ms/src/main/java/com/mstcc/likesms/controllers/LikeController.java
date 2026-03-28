@@ -2,7 +2,6 @@ package com.mstcc.likesms.controllers;
 
 import com.mstcc.likesms.entities.Like;
 import com.mstcc.likesms.services.LikeService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -15,7 +14,6 @@ public class LikeController {
 
     private final LikeService likeService;
 
-    @Autowired
     public LikeController(LikeService likeService) {
         this.likeService = likeService;
     }

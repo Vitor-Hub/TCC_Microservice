@@ -100,7 +100,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,prometheus,metrics
+        include: health,info,prometheus,metrics,threaddump
   endpoint:
     health:
       show-details: always
@@ -110,6 +110,12 @@ management:
     export:
       prometheus:
         enabled: true
+    tags:
+      application: ${spring.application.name}
+      service: gateway-service
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
 
 # Resilience4j Circuit Breaker Configuration
 resilience4j:

@@ -40,6 +40,13 @@ spring:
           in_clause_parameter_padding: true   # NEW - query plan cache optimization
         generate_statistics: false    # NEW - disable in production
   
+  # Cache configuration
+  cache:
+    type: caffeine
+    caffeine:
+      spec: maximumSize=5000,expireAfterWrite=15m,expireAfterAccess=10m,recordStats
+    cache-names: likes,postLikes,userLikes
+
   # Feign client optimizations
   cloud:
     openfeign:
@@ -99,34 +106,39 @@ eureka:
     lease-renewal-interval-in-seconds: 10
     lease-expiration-duration-in-seconds: 30
     metadata-map:
-      version: 1.0.0                  # NEW - useful for blue/green deployments
+      version: 1.0.0
+      cache-enabled: true
 
 # Actuator/Prometheus configuration
 management:
   endpoints:
     web:
       exposure:
-        include: health,info,prometheus,metrics,threaddump,heapdump  # NEW - added thread/heap dumps
+        include: health,info,prometheus,metrics,caches,threaddump
   endpoint:
     health:
       show-details: always
       probes:
-        enabled: true                 # NEW - K8s liveness/readiness probes
+        enabled: true
     prometheus:
+      enabled: true
+    caches:
       enabled: true
   metrics:
     export:
       prometheus:
         enabled: true
     tags:
-      application: ${spring.application.name}  # NEW - tags for Grafana
+      application: ${spring.application.name}
       service: like-service
     distribution:
       percentiles-histogram:
-        http.server.requests: true    # NEW - detailed latency metrics
+        http.server.requests: true
+    cache:
+      metric-names: likes,postLikes,userLikes
   health:
     circuitbreakers:
-      enabled: true                   # NEW - circuit breaker health indicator
+      enabled: true
 
 # Feign + Resilience4j integration
 feign:
@@ -189,13 +201,13 @@ resilience4j:
         queue-capacity: 100
         keep-alive-duration: 20ms
 
-# NEW - Logging configuration
 logging:
   level:
     com.mstcc.likesms: INFO
-    org.springframework.cloud.openfeign: DEBUG  # Feign client logging
+    org.springframework.cloud.openfeign: DEBUG
     org.hibernate.SQL: WARN
     org.hibernate.type.descriptor.sql.BasicBinder: WARN
+    org.springframework.cache: DEBUG
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
     file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

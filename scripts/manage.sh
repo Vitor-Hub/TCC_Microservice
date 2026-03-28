@@ -1,13 +1,11 @@
 #!/bin/bash
 
 # ═══════════════════════════════════════════════════════════════
-# 🚀 TCC MICROSERVICES - MANAGEMENT SCRIPT
-# One script to rule them all
+# TCC MICROSERVICES - MANAGEMENT CONSOLE
 # ═══════════════════════════════════════════════════════════════
 
 set -e
 
-# Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -18,128 +16,130 @@ NC='\033[0m'
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+RESULTS_DIR="$SCRIPT_DIR/test-results"
+K6_SCRIPT="$SCRIPT_DIR/k6-load-test.js"
 
 # ═══════════════════════════════════════════════════════════════
-# MENU PRINCIPAL
+# MENU
 # ═══════════════════════════════════════════════════════════════
 show_menu() {
     clear
     echo -e "${BLUE}╔════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${BLUE}║  ${BOLD}🎓 TCC MICROSERVICES - MANAGEMENT CONSOLE${NC}${BLUE}        ║${NC}"
+    echo -e "${BLUE}║     ${BOLD}TCC MICROSERVICES - MANAGEMENT CONSOLE${NC}${BLUE}          ║${NC}"
     echo -e "${BLUE}╚════════════════════════════════════════════════════════╝${NC}"
     echo ""
-    echo -e "${CYAN}📦 BUILD & DEPLOY${NC}"
+    echo -e "${CYAN}BUILD & DEPLOY${NC}"
     echo "  1) Build All Services"
     echo "  2) Deploy System"
-    echo "  3) Fresh Start (Clean + Build + Deploy)"
+    echo "  3) Fresh Start  (limpa tudo + build + deploy)"
     echo ""
-    echo -e "${CYAN}🔍 MONITORING${NC}"
+    echo -e "${CYAN}MONITORAMENTO${NC}"
     echo "  4) Check System Health"
     echo "  5) View Logs"
     echo ""
-    echo -e "${CYAN}🧪 TESTING${NC}"
-    echo "  6) Run Load Test"
-    echo "  7) Generate Performance Report"
+    echo -e "${CYAN}TESTES DE CARGA (k6)${NC}"
+    echo "  6) Rodar Suite Completa (~18 min)"
+    echo "  7) Baseline Load        (5 VUs, 2 min)"
+    echo "  8) Steady Load          (20 VUs, 3 min)"
+    echo "  9) Stress Test          (ate 150 VUs, 8 min)"
+    echo "  10) Spike Test           (ate 200 VUs, 3 min)"
+    echo "  11) Read-Heavy           (30 VUs, 2 min)"
     echo ""
-    echo -e "${CYAN}🛠️  MAINTENANCE${NC}"
-    echo "  8) Stop All Services"
-    echo "  9) Clean Everything"
+    echo -e "${CYAN}DADOS & RELATORIO${NC}"
+    echo "  12) Seed Test Data"
+    echo "  13) Gerar Relatorio de Comparacao"
     echo ""
-    echo -e "${CYAN}📚 QUICK ACCESS${NC}"
-    echo "  10) Open Grafana Dashboard"
-    echo "  11) Open Eureka Dashboard"
-    echo "  12) Open Prometheus"
+    echo -e "${CYAN}MANUTENCAO${NC}"
+    echo "  14) Stop All Services"
+    echo "  15) Clean Everything"
     echo ""
-    echo "  0) Exit"
+    echo -e "${CYAN}DASHBOARDS${NC}"
+    echo "  16) Grafana   http://localhost:3000"
+    echo "  17) Eureka    http://localhost:8761"
+    echo "  18) Prometheus http://localhost:9090"
     echo ""
-    echo -ne "${YELLOW}Select option: ${NC}"
+    echo "  0) Sair"
+    echo ""
+    echo -ne "${YELLOW}Opcao: ${NC}"
 }
 
 # ═══════════════════════════════════════════════════════════════
-# 1. BUILD ALL SERVICES
+# 1. BUILD
 # ═══════════════════════════════════════════════════════════════
 build_all() {
-    echo -e "${BLUE}╔════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${BLUE}║  🔨 BUILDING ALL SERVICES                              ║${NC}"
-    echo -e "${BLUE}╚════════════════════════════════════════════════════════╝${NC}"
+    echo -e "${BLUE}[BUILD] Building all services...${NC}"
     echo ""
-    
-    SERVICES=(
+
+    local services=(
         "eureka-server-ms:Eureka Server"
-        "gateway-service-ms:API Gateway"
         "user-ms:User Service"
         "post-ms:Post Service"
         "comment-ms:Comment Service"
         "like-ms:Like Service"
         "friendship-ms:Friendship Service"
+        "gateway-service-ms:API Gateway"
     )
-    
-    SERVICES_BUILT=0
-    BUILD_ERRORS=0
-    TOTAL_SERVICES=7
-    
-    for service_info in "${SERVICES[@]}"; do
-        IFS=':' read -r service_dir service_name <<< "$service_info"
-        ((SERVICES_BUILT++)) || true
-        
-        echo -e "${CYAN}[$SERVICES_BUILT/$TOTAL_SERVICES] Building $service_name${NC}"
-        
-        cd "$PROJECT_ROOT/$service_dir"
-        
-        if mvn clean package -DskipTests > /tmp/build_${service_dir}.log 2>&1; then
-            echo -e "${GREEN}  ✓ $service_name built successfully${NC}"
+
+    local errors=0
+    local count=0
+    local total=${#services[@]}
+
+    for entry in "${services[@]}"; do
+        IFS=':' read -r dir name <<< "$entry"
+        ((count++)) || true
+        echo -e "${CYAN}[$count/$total] $name${NC}"
+        cd "$PROJECT_ROOT/$dir"
+        if mvn clean package -DskipTests -q 2>/tmp/build_${dir}.log; then
+            echo -e "  ${GREEN}OK${NC}"
         else
-            echo -e "${RED}  ✗ Failed to build $service_name${NC}"
-            echo -e "${YELLOW}  Log: /tmp/build_${service_dir}.log${NC}"
-            ((BUILD_ERRORS++))
+            echo -e "  ${RED}FALHOU - ver /tmp/build_${dir}.log${NC}"
+            ((errors++)) || true
         fi
-        
         cd "$PROJECT_ROOT"
     done
-    
+
     echo ""
-    if [ "$BUILD_ERRORS" -eq 0 ]; then
-        echo -e "${GREEN}✓ All services built successfully!${NC}"
+    if [ "$errors" -eq 0 ]; then
+        echo -e "${GREEN}Todos os servicos compilados com sucesso.${NC}"
     else
-        echo -e "${RED}✗ $BUILD_ERRORS service(s) failed to build${NC}"
+        echo -e "${RED}$errors servico(s) falharam.${NC}"
     fi
-    
     pause
 }
 
 # ═══════════════════════════════════════════════════════════════
-# 2. DEPLOY SYSTEM
+# 2. DEPLOY
+# Ordem correta:
+#   1. docker-compose.yml  -> cria a rede mstcc-net + DBs + microsservicos
+#   2. docker-compose.monitoring.yml -> join na rede externa
 # ═══════════════════════════════════════════════════════════════
 deploy_system() {
-    echo -e "${BLUE}╔════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${BLUE}║  🚀 DEPLOYING SYSTEM                                   ║${NC}"
-    echo -e "${BLUE}╚════════════════════════════════════════════════════════╝${NC}"
+    echo -e "${BLUE}[DEPLOY] Subindo o sistema...${NC}"
     echo ""
-    
     cd "$PROJECT_ROOT"
-    
-    echo -e "${YELLOW}Starting databases...${NC}"
-    docker-compose -f docker-compose.db.yml up -d
-    sleep 10
-    
-    echo -e "${YELLOW}Starting monitoring...${NC}"
-    docker-compose -f docker-compose.monitoring.yml up -d
-    sleep 5
-    
-    echo -e "${YELLOW}Starting microservices...${NC}"
-    docker-compose up -d --build
-    
+
+    echo -e "${YELLOW}[1/2] Subindo microsservicos e bancos de dados...${NC}"
+    docker compose up -d --build
+
     echo ""
-    echo -e "${GREEN}✓ System deployed!${NC}"
-    echo -e "${YELLOW}Waiting 60s for services to stabilize...${NC}"
-    
-    for i in {60..1}; do
-        printf "\r  Time remaining: %02ds" $i
+    echo -e "${YELLOW}Aguardando 90s para os servicos iniciarem...${NC}"
+    for i in {90..1}; do
+        printf "\r  %02ds restantes..." $i
         sleep 1
     done
     echo ""
-    
+
+    echo -e "${YELLOW}[2/2] Subindo monitoramento (Prometheus + Grafana)...${NC}"
+    docker compose -p mstcc-monitoring -f docker-compose.monitoring.yml up -d
+
+    echo ""
     check_health_quick
+    echo ""
+    echo -e "${GREEN}Sistema pronto!${NC}"
+    echo -e "  Grafana:    ${CYAN}http://localhost:3000${NC}  (admin/admin)"
+    echo -e "  Eureka:     ${CYAN}http://localhost:8761${NC}"
+    echo -e "  Gateway:    ${CYAN}http://localhost:18765${NC}"
+    echo ""
     pause
 }
 
@@ -147,115 +147,91 @@ deploy_system() {
 # 3. FRESH START
 # ═══════════════════════════════════════════════════════════════
 fresh_start() {
-    echo -e "${BLUE}╔════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${BLUE}║  🔄 FRESH START                                        ║${NC}"
-    echo -e "${BLUE}╚════════════════════════════════════════════════════════╝${NC}"
+    echo -e "${BLUE}[FRESH START]${NC}"
     echo ""
-    echo -e "${RED}⚠️  This will:${NC}"
-    echo "  • Stop all containers"
-    echo "  • Remove all volumes (data will be lost!)"
-    echo "  • Rebuild all services"
-    echo "  • Deploy fresh system"
-    echo ""
-    read -p "Continue? (yes/no): " confirm
-    
-    if [ "$confirm" != "yes" ]; then
-        echo -e "${YELLOW}Cancelled.${NC}"
-        pause
-        return
-    fi
-    
-    echo ""
-    echo -e "${CYAN}[1/4] Stopping everything...${NC}"
-    docker-compose down -v 2>/dev/null || true
-    docker-compose -f docker-compose.db.yml down -v 2>/dev/null || true
-    docker-compose -f docker-compose.monitoring.yml down -v 2>/dev/null || true
-    
-    echo -e "${CYAN}[2/4] Removing old images...${NC}"
-    docker images | grep "microsservice" | awk '{print $3}' | xargs docker rmi -f 2>/dev/null || true
-    
-    echo -e "${CYAN}[3/4] Building services...${NC}"
+    echo -e "${RED}Atencao: todos os containers e volumes (dados) serao removidos!${NC}"
+    echo -ne "Continuar? (yes/no): "
+    read -r confirm
+    [ "$confirm" != "yes" ] && { echo "Cancelado."; pause; return; }
+
+    cd "$PROJECT_ROOT"
+
+    echo -e "${CYAN}[1/3] Removendo containers e volumes...${NC}"
+    docker compose down -v 2>/dev/null || true
+    docker compose -p mstcc-monitoring -f docker-compose.monitoring.yml down -v 2>/dev/null || true
+
+    echo -e "${CYAN}[2/3] Compilando servicos...${NC}"
     build_all
-    
-    echo -e "${CYAN}[4/4] Deploying...${NC}"
+
+    echo -e "${CYAN}[3/3] Fazendo deploy...${NC}"
     deploy_system
 }
 
 # ═══════════════════════════════════════════════════════════════
-# 4. CHECK SYSTEM HEALTH
+# 4. HEALTH CHECK
 # ═══════════════════════════════════════════════════════════════
+check_service() {
+    local name=$1
+    local url=$2
+    printf "  %-30s" "$name"
+    if curl -f -s "$url" > /dev/null 2>&1; then
+        echo -e "${GREEN}OK${NC}"
+        return 0
+    else
+        echo -e "${RED}DOWN${NC}"
+        return 1
+    fi
+}
+
 check_health() {
-    echo -e "${BLUE}╔════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${BLUE}║  🏥 SYSTEM HEALTH CHECK                                ║${NC}"
-    echo -e "${BLUE}╚════════════════════════════════════════════════════════╝${NC}"
+    echo -e "${BLUE}[HEALTH CHECK]${NC}"
     echo ""
-    
-    check_service() {
-        local name=$1
-        local url=$2
-        printf "  %-30s" "$name"
-        
-        if curl -f -s "$url" > /dev/null 2>&1; then
-            echo -e "${GREEN}✓ Healthy${NC}"
-            return 0
-        else
-            echo -e "${RED}✗ Down${NC}"
-            return 1
-        fi
-    }
-    
-    HEALTHY=0
-    TOTAL=9
-    
-    check_service "Eureka Server" "http://localhost:8761" && ((HEALTHY++)) || true
-    check_service "API Gateway" "http://localhost:18765/actuator/health" && ((HEALTHY++)) || true
-    check_service "User Service" "http://localhost:18081/actuator/health" && ((HEALTHY++)) || true
-    check_service "Post Service" "http://localhost:18082/actuator/health" && ((HEALTHY++)) || true
-    check_service "Comment Service" "http://localhost:18083/actuator/health" && ((HEALTHY++)) || true
-    check_service "Like Service" "http://localhost:18084/actuator/health" && ((HEALTHY++)) || true
-    check_service "Friendship Service" "http://localhost:18085/actuator/health" && ((HEALTHY++)) || true
-    check_service "Prometheus" "http://localhost:9090/-/ready" && ((HEALTHY++)) || true
-    check_service "Grafana" "http://localhost:3000/api/health" && ((HEALTHY++)) || true
-    
+    local ok=0
+    check_service "Eureka Server"     "http://localhost:8761"                    && ((ok++)) || true
+    check_service "API Gateway"       "http://localhost:18765/actuator/health"   && ((ok++)) || true
+    check_service "User Service"      "http://localhost:18081/actuator/health"   && ((ok++)) || true
+    check_service "Post Service"      "http://localhost:18082/actuator/health"   && ((ok++)) || true
+    check_service "Comment Service"   "http://localhost:18083/actuator/health"   && ((ok++)) || true
+    check_service "Like Service"      "http://localhost:18084/actuator/health"   && ((ok++)) || true
+    check_service "Friendship Service" "http://localhost:18085/actuator/health"  && ((ok++)) || true
+    check_service "Prometheus"        "http://localhost:9090/-/ready"            && ((ok++)) || true
+    check_service "Grafana"           "http://localhost:3000/api/health"         && ((ok++)) || true
     echo ""
-    echo -e "${CYAN}Health: $HEALTHY/$TOTAL services${NC}"
+    echo -e "${CYAN}$ok/9 servicos saudaveis${NC}"
     echo ""
-    
     pause
 }
 
 check_health_quick() {
-    echo -e "${YELLOW}Quick health check...${NC}"
-    curl -f -s http://localhost:8761 > /dev/null 2>&1 && echo -e "  ${GREEN}✓ Eureka${NC}" || echo -e "  ${RED}✗ Eureka${NC}"
-    curl -f -s http://localhost:18765/actuator/health > /dev/null 2>&1 && echo -e "  ${GREEN}✓ Gateway${NC}" || echo -e "  ${RED}✗ Gateway${NC}"
+    echo -e "${YELLOW}Health check rapido...${NC}"
+    curl -f -s http://localhost:8761 > /dev/null 2>&1 \
+        && echo -e "  ${GREEN}OK${NC} Eureka" || echo -e "  ${RED}DOWN${NC} Eureka"
+    curl -f -s http://localhost:18765/actuator/health > /dev/null 2>&1 \
+        && echo -e "  ${GREEN}OK${NC} Gateway" || echo -e "  ${RED}DOWN${NC} Gateway"
 }
 
 # ═══════════════════════════════════════════════════════════════
-# 5. VIEW LOGS
+# 5. LOGS
 # ═══════════════════════════════════════════════════════════════
 view_logs() {
-    echo -e "${BLUE}╔════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${BLUE}║  📋 VIEW LOGS                                          ║${NC}"
-    echo -e "${BLUE}╚════════════════════════════════════════════════════════╝${NC}"
-    echo ""
-    echo "Select service:"
-    echo "  1) Like Service"
+    echo -e "${BLUE}[LOGS] Selecione o servico:${NC}"
+    echo "  1) User Service"
     echo "  2) Post Service"
     echo "  3) Comment Service"
-    echo "  4) Friendship Service"
-    echo "  5) User Service"
+    echo "  4) Like Service"
+    echo "  5) Friendship Service"
     echo "  6) Gateway"
     echo "  7) Eureka"
-    echo "  0) Back"
+    echo "  0) Voltar"
     echo ""
-    read -p "Option: " log_option
-    
-    case $log_option in
-        1) docker logs -f --tail=100 mstcc_like_service ;;
+    echo -ne "Opcao: "
+    read -r opt
+    case $opt in
+        1) docker logs -f --tail=100 mstcc_user_service ;;
         2) docker logs -f --tail=100 mstcc_post_service ;;
         3) docker logs -f --tail=100 mstcc_comment_service ;;
-        4) docker logs -f --tail=100 mstcc_friendship_service ;;
-        5) docker logs -f --tail=100 mstcc_user_service ;;
+        4) docker logs -f --tail=100 mstcc_like_service ;;
+        5) docker logs -f --tail=100 mstcc_friendship_service ;;
         6) docker logs -f --tail=100 mstcc_gateway ;;
         7) docker logs -f --tail=100 mstcc_eureka_server ;;
         0) return ;;
@@ -263,145 +239,138 @@ view_logs() {
 }
 
 # ═══════════════════════════════════════════════════════════════
-# 6. RUN LOAD TEST
+# K6 - FUNCOES AUXILIARES
 # ═══════════════════════════════════════════════════════════════
-run_load_test() {
-    echo -e "${BLUE}╔════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${BLUE}║  🧪 RUNNING LOAD TEST                                  ║${NC}"
-    echo -e "${BLUE}╚════════════════════════════════════════════════════════╝${NC}"
-    echo ""
-    
+check_k6() {
     if ! command -v k6 &> /dev/null; then
-        echo -e "${RED}✗ K6 not installed!${NC}"
-        echo "Install: brew install k6 (macOS) or https://k6.io"
+        echo -e "${RED}k6 nao esta instalado.${NC}"
+        echo "  macOS: brew install k6"
+        echo "  Docs:  https://k6.io/docs/get-started/installation/"
         pause
-        return
+        return 1
     fi
-    
-    K6_SCRIPT="$SCRIPT_DIR/k6-load-test.js"
-    
-    if [ ! -f "$K6_SCRIPT" ]; then
-        echo -e "${RED}✗ K6 script not found: $K6_SCRIPT${NC}"
-        pause
-        return
-    fi
-    
-    RESULTS_DIR="$SCRIPT_DIR/test-results"
-    TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-    
+    return 0
+}
+
+run_k6_scenario() {
+    local label=$1
+    local duration_note=$2
+    local extra_args=${3:-""}
+
+    check_k6 || return
+
     mkdir -p "$RESULTS_DIR"
-    
-    echo -e "${YELLOW}Running K6 load test...${NC}"
-    echo -e "${CYAN}Test duration: ~18 minutes${NC}"
-    echo -e "${CYAN}Results will be saved to: $RESULTS_DIR${NC}"
+    local timestamp
+    timestamp=$(date +%Y%m%d_%H%M%S)
+    local tag
+    tag=$(echo "$label" | tr ' ' '_' | tr '[:upper:]' '[:lower:]')
+    local out_json="$RESULTS_DIR/${tag}_${timestamp}.json"
+    local out_summary="$RESULTS_DIR/${tag}_${timestamp}_summary.json"
+
+    echo -e "${BLUE}[K6] $label  ($duration_note)${NC}"
+    echo -e "${CYAN}  Resultado: $out_json${NC}"
     echo ""
-    
+
+    # shellcheck disable=SC2086
     k6 run \
-        --out json="$RESULTS_DIR/test_${TIMESTAMP}.json" \
-        --summary-export="$RESULTS_DIR/summary_${TIMESTAMP}.json" \
+        --out "json=$out_json" \
+        --summary-export "$out_summary" \
+        $extra_args \
         "$K6_SCRIPT"
-    
+
     echo ""
-    echo -e "${GREEN}✓ Test completed!${NC}"
-    echo "Results saved to: $RESULTS_DIR/test_${TIMESTAMP}.json"
+    echo -e "${GREEN}Teste concluido!${NC}"
+    echo -e "  Summary: ${CYAN}$out_summary${NC}"
     echo ""
-    
     pause
 }
 
 # ═══════════════════════════════════════════════════════════════
-# 7. GENERATE REPORT
+# 6-11. CENARIOS K6
+# ═══════════════════════════════════════════════════════════════
+run_full_suite() {
+    run_k6_scenario "Suite Completa" "~18 min"
+}
+
+run_baseline() {
+    run_k6_scenario "Baseline Load" "2 min" \
+        "--env SCENARIO=baseline_load --duration 2m --vus 5"
+}
+
+run_steady() {
+    run_k6_scenario "Steady Load" "3 min" \
+        "--env SCENARIO=steady_load --duration 3m --vus 20"
+}
+
+run_stress() {
+    run_k6_scenario "Stress Test" "~8 min" \
+        "--env SCENARIO=stress_test"
+}
+
+run_spike() {
+    run_k6_scenario "Spike Test" "~3 min" \
+        "--env SCENARIO=spike_test"
+}
+
+run_read_heavy() {
+    run_k6_scenario "Read-Heavy" "2 min" \
+        "--env SCENARIO=read_heavy --duration 2m --vus 30"
+}
+
+# ═══════════════════════════════════════════════════════════════
+# 12. SEED DATA
+# ═══════════════════════════════════════════════════════════════
+run_seed() {
+    echo -e "${BLUE}[SEED DATA]${NC}"
+    bash "$SCRIPT_DIR/seed-data.sh"
+    pause
+}
+
+# ═══════════════════════════════════════════════════════════════
+# 13. RELATORIO DE COMPARACAO
 # ═══════════════════════════════════════════════════════════════
 generate_report() {
-    echo -e "${BLUE}╔════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${BLUE}║  📊 GENERATING PERFORMANCE REPORT                      ║${NC}"
-    echo -e "${BLUE}╚════════════════════════════════════════════════════════╝${NC}"
-    echo ""
-    
-    REPORT_SCRIPT="$SCRIPT_DIR/generate-report.py"
-    RESULTS_DIR="$SCRIPT_DIR/test-results"
-    
-    if [ ! -f "$REPORT_SCRIPT" ]; then
-        echo -e "${RED}✗ Report script not found: $REPORT_SCRIPT${NC}"
-        pause
-        return
-    fi
-    
-    python3 "$REPORT_SCRIPT" "$RESULTS_DIR"
-    
-    echo ""
+    echo -e "${BLUE}[RELATORIO]${NC}"
+    bash "$SCRIPT_DIR/generate-report.sh"
     pause
 }
 
 # ═══════════════════════════════════════════════════════════════
-# 8. STOP ALL
+# 14. STOP
 # ═══════════════════════════════════════════════════════════════
 stop_all() {
-    echo -e "${BLUE}╔════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${BLUE}║  🛑 STOPPING ALL SERVICES                              ║${NC}"
-    echo -e "${BLUE}╚════════════════════════════════════════════════════════╝${NC}"
-    echo ""
-    
+    echo -e "${BLUE}[STOP] Parando todos os servicos...${NC}"
     cd "$PROJECT_ROOT"
-    
-    echo -e "${YELLOW}Stopping services...${NC}"
-    docker-compose down 2>/dev/null || true
-    docker-compose -f docker-compose.db.yml down 2>/dev/null || true
-    docker-compose -f docker-compose.monitoring.yml down 2>/dev/null || true
-    
-    echo -e "${GREEN}✓ All services stopped${NC}"
+    docker compose down 2>/dev/null || true
+    docker compose -p mstcc-monitoring -f docker-compose.monitoring.yml down 2>/dev/null || true
+    echo -e "${GREEN}Servicos parados.${NC}"
     echo ""
-    
     pause
 }
 
 # ═══════════════════════════════════════════════════════════════
-# 9. CLEAN EVERYTHING
+# 15. CLEAN
 # ═══════════════════════════════════════════════════════════════
 clean_all() {
-    echo -e "${BLUE}╔════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${BLUE}║  🧹 CLEANING EVERYTHING                                ║${NC}"
-    echo -e "${BLUE}╚════════════════════════════════════════════════════════╝${NC}"
-    echo ""
-    echo -e "${RED}⚠️  This will remove all containers, volumes, and images!${NC}"
-    read -p "Continue? (yes/no): " confirm
-    
-    if [ "$confirm" != "yes" ]; then
-        echo -e "${YELLOW}Cancelled.${NC}"
-        pause
-        return
-    fi
-    
-    echo ""
-    docker-compose down -v 2>/dev/null || true
-    docker-compose -f docker-compose.db.yml down -v 2>/dev/null || true
-    docker-compose -f docker-compose.monitoring.yml down -v 2>/dev/null || true
+    echo -e "${RED}ATENCAO: remove todos os containers, volumes e imagens!${NC}"
+    echo -ne "Continuar? (yes/no): "
+    read -r confirm
+    [ "$confirm" != "yes" ] && { echo "Cancelado."; pause; return; }
+
+    cd "$PROJECT_ROOT"
+    docker compose down -v 2>/dev/null || true
+    docker compose -p mstcc-monitoring -f docker-compose.monitoring.yml down -v 2>/dev/null || true
     docker images | grep "microsservice" | awk '{print $3}' | xargs docker rmi -f 2>/dev/null || true
-    
-    echo -e "${GREEN}✓ Everything cleaned${NC}"
+    echo -e "${GREEN}Limpeza concluida.${NC}"
     echo ""
-    
     pause
 }
 
 # ═══════════════════════════════════════════════════════════════
-# 10-12. QUICK ACCESS
+# 16-18. DASHBOARDS
 # ═══════════════════════════════════════════════════════════════
-open_grafana() {
-    echo "Opening Grafana (login: admin/admin)..."
-    open http://localhost:3000 2>/dev/null || xdg-open http://localhost:3000 2>/dev/null || echo "Open: http://localhost:3000"
-    pause
-}
-
-open_eureka() {
-    echo "Opening Eureka Dashboard..."
-    open http://localhost:8761 2>/dev/null || xdg-open http://localhost:8761 2>/dev/null || echo "Open: http://localhost:8761"
-    pause
-}
-
-open_prometheus() {
-    echo "Opening Prometheus..."
-    open http://localhost:9090 2>/dev/null || xdg-open http://localhost:9090 2>/dev/null || echo "Open: http://localhost:9090"
+open_url() {
+    open "$1" 2>/dev/null || xdg-open "$1" 2>/dev/null || echo "Acesse: $1"
     pause
 }
 
@@ -410,30 +379,35 @@ open_prometheus() {
 # ═══════════════════════════════════════════════════════════════
 pause() {
     echo ""
-    read -p "Press Enter to continue..."
+    read -rp "Pressione Enter para continuar..."
 }
 
 # ═══════════════════════════════════════════════════════════════
-# MAIN LOOP
+# MAIN
 # ═══════════════════════════════════════════════════════════════
 while true; do
     show_menu
-    read option
-    
+    read -r option
     case $option in
-        1) build_all ;;
-        2) deploy_system ;;
-        3) fresh_start ;;
-        4) check_health ;;
-        5) view_logs ;;
-        6) run_load_test ;;
-        7) generate_report ;;
-        8) stop_all ;;
-        9) clean_all ;;
-        10) open_grafana ;;
-        11) open_eureka ;;
-        12) open_prometheus ;;
-        0) echo -e "${GREEN}Goodbye!${NC}"; exit 0 ;;
-        *) echo -e "${RED}Invalid option${NC}"; sleep 1 ;;
+        1)  build_all ;;
+        2)  deploy_system ;;
+        3)  fresh_start ;;
+        4)  check_health ;;
+        5)  view_logs ;;
+        6)  run_full_suite ;;
+        7)  run_baseline ;;
+        8)  run_steady ;;
+        9)  run_stress ;;
+        10) run_spike ;;
+        11) run_read_heavy ;;
+        12) run_seed ;;
+        13) generate_report ;;
+        14) stop_all ;;
+        15) clean_all ;;
+        16) open_url "http://localhost:3000" ;;
+        17) open_url "http://localhost:8761" ;;
+        18) open_url "http://localhost:9090" ;;
+        0)  echo -e "${GREEN}Saindo...${NC}"; exit 0 ;;
+        *)  echo -e "${RED}Opcao invalida${NC}"; sleep 1 ;;
     esac
 done

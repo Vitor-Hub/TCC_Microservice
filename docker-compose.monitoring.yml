@@ -1,12 +1,10 @@
-version: "3.8"
-
 services:
   # ==========================================================
   # 📊 MONITORING STACK
   # ==========================================================
   
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v2.53.0
     container_name: mstcc_prometheus
     restart: unless-stopped
     ports:
@@ -22,9 +20,21 @@ services:
       - '--web.console.templates=/usr/share/prometheus/consoles'
     networks:
       - mstcc-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:9090/-/healthy || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
 
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:11.1.0
     container_name: mstcc_grafana
     restart: unless-stopped
     ports:
@@ -38,9 +48,22 @@ services:
       - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
       - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
     depends_on:
-      - prometheus
+      prometheus:
+        condition: service_healthy
     networks:
       - mstcc-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:3000/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
 
 # ==========================================================
 # 🗂️ VOLUMES & NETWORK
@@ -51,4 +74,4 @@ volumes:
 
 networks:
   mstcc-net:
-    driver: bridge
+    external: true  # Usa a rede criada pelo docker-compose.yml principal

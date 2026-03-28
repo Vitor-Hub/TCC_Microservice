@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   # ==========================================================
   # 🌐 EUREKA SERVER - Service Discovery
@@ -419,6 +417,7 @@ volumes:
 # ==========================================================
 networks:
   mstcc-net:
+    name: mstcc-net
     driver: bridge
     ipam:
       config:
