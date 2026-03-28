@@ -4,6 +4,7 @@ import com.mstcc.likesms.dto.CommentDTO;
 import com.mstcc.likesms.dto.PostDTO;
 import com.mstcc.likesms.dto.UserDTO;
 import com.mstcc.likesms.entities.Like;
+import com.mstcc.likesms.exceptions.LikeValidationException;
 import com.mstcc.likesms.repositories.LikeRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,51 +42,52 @@ public class LikeService {
      * Creates a like with parallel validation of user, post, and optional comment
      * @param like the like entity to create
      * @return the saved like entity
-     * @throws RuntimeException if validation fails
+     * @throws LikeValidationException if validation fails
      */
     @CacheEvict(value = {"likes", "postLikes", "userLikes"}, allEntries = true)
     public Like createAndValidateLike(Like like) {
         long startTime = System.currentTimeMillis();
-        logger.info("Creating like - userId: {}, postId: {}, commentId: {}", 
+        logger.info("Creating like - userId: {}, postId: {}, commentId: {}",
                    like.getUserId(), like.getPostId(), like.getCommentId());
-        
+
+        if (like.getPostId() == null && like.getCommentId() == null) {
+            throw new IllegalArgumentException("Like must reference a post or a comment");
+        }
+
         try {
-            // Parallel validation of user and post (mandatory)
+            // User validation is always mandatory
             CompletableFuture<UserDTO> userFuture = asyncHelper.getUserAsync(like.getUserId());
-            CompletableFuture<PostDTO> postFuture = asyncHelper.getPostAsync(like.getPostId());
-            
-            // Wait for mandatory validations with timeout
-            CompletableFuture.allOf(userFuture, postFuture)
+
+            // Post validation only when postId is present
+            CompletableFuture<PostDTO> postFuture = like.getPostId() != null
+                ? asyncHelper.getPostAsync(like.getPostId())
+                : CompletableFuture.completedFuture(null);
+
+            // Comment validation only when commentId is present
+            CompletableFuture<CommentDTO> commentFuture = like.getCommentId() != null
+                ? asyncHelper.getCommentAsync(like.getCommentId())
+                : CompletableFuture.completedFuture(null);
+
+            CompletableFuture.allOf(userFuture, postFuture, commentFuture)
                 .get(VALIDATION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-            
-            // Optional comment validation (non-blocking failure)
-            if (like.getCommentId() != null) {
-                asyncHelper.getCommentAsync(like.getCommentId())
-                    .exceptionally(ex -> {
-                        logger.warn("Comment validation failed for commentId: {}, proceeding anyway", 
-                                   like.getCommentId());
-                        return null;
-                    })
-                    .get(VALIDATION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-            }
-            
+
             Like savedLike = likeRepository.save(like);
-            
+
             long duration = System.currentTimeMillis() - startTime;
-            logger.info(" Like created successfully in {}ms - likeId: {}", duration, savedLike.getId());
-            
+            logger.info("Like created successfully in {}ms - likeId: {}", duration, savedLike.getId());
+
             return savedLike;
-            
+
         } catch (TimeoutException e) {
-            logger.error("  Validation timeout after {}s", VALIDATION_TIMEOUT_SECONDS);
-            throw new RuntimeException("Validation timeout: external services took too long", e);
+            logger.error("Validation timeout after {}s", VALIDATION_TIMEOUT_SECONDS);
+            throw new LikeValidationException("Validation timeout: external services took too long", e);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            logger.error("  Validation interrupted");
-            throw new RuntimeException("Validation interrupted", e);
+            logger.error("Validation interrupted");
+            throw new LikeValidationException("Validation interrupted", e);
         } catch (ExecutionException e) {
-            logger.error("  Validation failed: {}", e.getCause().getMessage());
-            throw new RuntimeException("Validation failed: " + e.getCause().getMessage(), e);
+            logger.error("Validation failed: {}", e.getCause().getMessage());
+            throw new LikeValidationException("Validation failed: " + e.getCause().getMessage(), e);
         }
     }
 
@@ -95,31 +97,34 @@ public class LikeService {
     @CacheEvict(value = {"likes", "postLikes", "userLikes"}, allEntries = true)
     public Optional<Like> updateAndValidateLike(Long id, Like likeDetails) {
         logger.info("Updating like - id: {}", id);
-        
+
         return likeRepository.findById(id).map(like -> {
             long startTime = System.currentTimeMillis();
-            
+
             try {
                 CompletableFuture<UserDTO> userFuture = asyncHelper.getUserAsync(likeDetails.getUserId());
                 CompletableFuture<PostDTO> postFuture = asyncHelper.getPostAsync(likeDetails.getPostId());
 
                 CompletableFuture.allOf(userFuture, postFuture)
                     .get(VALIDATION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-                
+
                 like.setUserId(likeDetails.getUserId());
                 like.setPostId(likeDetails.getPostId());
                 like.setCommentId(likeDetails.getCommentId());
-                
+
                 Like updated = likeRepository.save(like);
-                
+
                 long duration = System.currentTimeMillis() - startTime;
-                logger.info(" Like updated successfully in {}ms", duration);
-                
+                logger.info("Like updated successfully in {}ms", duration);
+
                 return updated;
-                
-            } catch (Exception e) {
-                logger.error("  Failed to update like: {}", e.getMessage());
-                throw new RuntimeException("Failed to update like: " + e.getMessage(), e);
+
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new LikeValidationException("Validation interrupted", e);
+            } catch (ExecutionException | TimeoutException e) {
+                logger.error("Failed to update like: {}", e.getMessage());
+                throw new LikeValidationException("Failed to update like: " + e.getMessage(), e);
             }
         });
     }

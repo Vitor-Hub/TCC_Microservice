@@ -25,7 +25,7 @@ public class Like {
     @Column(name = "user_id")
     private Long userId;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
     @PrePersist

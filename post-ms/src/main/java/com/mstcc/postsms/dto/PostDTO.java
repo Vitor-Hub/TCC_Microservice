@@ -10,17 +10,17 @@ public class PostDTO {
     private String content;
     private LocalDateTime createdAt;
     private UserDTO user;
-    private List<CommentDTO> comment;
+    private List<CommentDTO> comments;
 
     public PostDTO() {
     }
 
-    public PostDTO(Post post, UserDTO user, List<CommentDTO> comment) {
+    public PostDTO(Post post, UserDTO user, List<CommentDTO> comments) {
         this.id = post.getId();
         this.content = post.getContent();
         this.createdAt = post.getCreatedAt();
         this.user = user;
-        this.comment = comment;
+        this.comments = comments;
     }
 
     public Long getId() {
@@ -55,11 +55,11 @@ public class PostDTO {
         this.user = user;
     }
 
-    public List<CommentDTO> getComment() {
-        return comment;
+    public List<CommentDTO> getComments() {
+        return comments;
     }
 
-    public void setComment(List<CommentDTO> comment) {
-        this.comment = comment;
+    public void setComments(List<CommentDTO> comments) {
+        this.comments = comments;
     }
 }
