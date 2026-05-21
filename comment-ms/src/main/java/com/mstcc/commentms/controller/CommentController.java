@@ -11,8 +11,14 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 /**
- * REST controller for Comment operations
- * Provides CRUD endpoints for comment management
+ * REST controller for Comment operations.
+ *
+ * <p>Applying SRP: this controller is responsible only for routing and delegating to
+ * {@link CommentService}. All exception formatting is handled by
+ * {@code GlobalExceptionHandler} — no try-catch blocks here.
+ *
+ * <p>Applying DIP: the controller depends on the {@link CommentService} abstraction,
+ * not on the concrete {@code CommentServiceImpl}.
  */
 @RestController
 @RequestMapping("/api/comments")
@@ -22,145 +28,111 @@ public class CommentController {
 
     private final CommentService commentService;
 
+    /**
+     * Constructs the controller with its required service dependency.
+     *
+     * @param commentService the comment business logic abstraction
+     */
     public CommentController(CommentService commentService) {
         this.commentService = commentService;
     }
 
     /**
-     * Retrieves all comments
-     * @return list of all comments
+     * Retrieves all comments.
+     *
+     * @return 200 with list of all comments
      */
     @GetMapping
     public ResponseEntity<List<Comment>> getAllComments() {
         logger.info("GET /api/comments - Fetching all comments");
-        List<Comment> comments = commentService.findAllComments();
-        logger.info("Returning {} comments", comments.size());
-        return ResponseEntity.ok(comments);
+        return ResponseEntity.ok(commentService.findAllComments());
     }
 
     /**
-     * Retrieves a comment by ID
+     * Retrieves a comment by ID.
+     *
      * @param id comment ID
-     * @return comment if found, 404 otherwise
+     * @return 200 with the comment, or 404 if not found
      */
     @GetMapping("/{id}")
     public ResponseEntity<Comment> getCommentById(@PathVariable Long id) {
         logger.info("GET /api/comments/{} - Fetching comment by id", id);
         return commentService.getCommentById(id)
-                .map(comment -> {
-                    logger.info("Comment found: id={}", id);
-                    return ResponseEntity.ok(comment);
-                })
-                .orElseGet(() -> {
-                    logger.warn("Comment not found: id={}", id);
-                    return ResponseEntity.notFound().build();
-                });
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     /**
-     * Retrieves all comments for a post
+     * Retrieves all comments for a given post.
+     * Exceptions are propagated to {@code GlobalExceptionHandler}.
+     *
      * @param postId post ID
-     * @return list of comments for the post
+     * @return 200 with list of comments (may be empty)
      */
     @GetMapping("/post/{postId}")
-    public ResponseEntity<?> getCommentsByPostId(@PathVariable Long postId) {
+    public ResponseEntity<List<Comment>> getCommentsByPostId(@PathVariable Long postId) {
         logger.info("GET /api/comments/post/{} - Fetching comments by post", postId);
-        
-        try {
-            List<Comment> comments = commentService.findCommentsByPostId(postId);
-            logger.info("Returning {} comments for postId: {}", comments.size(), postId);
-            return ResponseEntity.ok(comments);
-        } catch (RuntimeException e) {
-            logger.error("Error fetching comments for postId: {}", postId);
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
+        return ResponseEntity.ok(commentService.findCommentsByPostId(postId));
     }
 
     /**
-     * Retrieves all comments by a user
+     * Retrieves all comments by a given user.
+     * Exceptions are propagated to {@code GlobalExceptionHandler}.
+     *
      * @param userId user ID
-     * @return list of user's comments
+     * @return 200 with list of comments (may be empty)
      */
     @GetMapping("/user/{userId}")
-    public ResponseEntity<?> getCommentsByUserId(@PathVariable Long userId) {
+    public ResponseEntity<List<Comment>> getCommentsByUserId(@PathVariable Long userId) {
         logger.info("GET /api/comments/user/{} - Fetching comments by user", userId);
-        
-        try {
-            List<Comment> comments = commentService.findCommentsByUserId(userId);
-            logger.info("Returning {} comments for userId: {}", comments.size(), userId);
-            return ResponseEntity.ok(comments);
-        } catch (RuntimeException e) {
-            logger.error("Error fetching comments for userId: {}", userId);
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
+        return ResponseEntity.ok(commentService.findCommentsByUserId(userId));
     }
 
     /**
-     * Creates a new comment
+     * Creates a new comment.
+     * Exceptions are propagated to {@code GlobalExceptionHandler}.
+     *
      * @param comment comment data
-     * @return created comment with 201 status
+     * @return 201 with the created comment
      */
     @PostMapping
-    public ResponseEntity<?> createComment(@RequestBody Comment comment) {
-        logger.info("POST /api/comments - Creating new comment");
-        
-        try {
-            Comment savedComment = commentService.createAndValidateComment(comment);
-            logger.info("Comment created: id={}", savedComment.getId());
-            return ResponseEntity.status(HttpStatus.CREATED).body(savedComment);
-        } catch (IllegalArgumentException e) {
-            logger.error("Validation error: {}", e.getMessage());
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (RuntimeException e) {
-            logger.error("Error creating comment: {}", e.getMessage());
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
+    public ResponseEntity<Comment> createComment(@RequestBody Comment comment) {
+        logger.info("POST /api/comments - Creating new comment for userId: {}, postId: {}",
+                comment.getUserId(), comment.getPostId());
+        Comment savedComment = commentService.createAndValidateComment(comment);
+        logger.info("Comment created: id={}", savedComment.getId());
+        return ResponseEntity.status(HttpStatus.CREATED).body(savedComment);
     }
 
     /**
-     * Updates an existing comment
-     * @param id comment ID
+     * Updates an existing comment.
+     * Exceptions are propagated to {@code GlobalExceptionHandler}.
+     *
+     * @param id             comment ID
      * @param commentDetails updated comment data
-     * @return updated comment or 404 if not found
+     * @return 200 with the updated comment, or 404 if not found
      */
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateComment(
-            @PathVariable Long id, 
+    public ResponseEntity<Comment> updateComment(
+            @PathVariable Long id,
             @RequestBody Comment commentDetails) {
         logger.info("PUT /api/comments/{} - Updating comment", id);
-        
-        try {
-            return commentService.updateAndValidateComment(id, commentDetails)
-                    .map(comment -> {
-                        logger.info("Comment updated: id={}", id);
-                        return ResponseEntity.ok(comment);
-                    })
-                    .orElseGet(() -> {
-                        logger.warn("Comment not found for update: id={}", id);
-                        return ResponseEntity.notFound().build();
-                    });
-        } catch (RuntimeException e) {
-            logger.error("Error updating comment: {}", e.getMessage());
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
+        return commentService.updateAndValidateComment(id, commentDetails)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     /**
-     * Deletes a comment
+     * Deletes a comment.
+     * Exceptions are propagated to {@code GlobalExceptionHandler}.
+     *
      * @param id comment ID
-     * @return 204 if successful, 404 if not found
+     * @return 204 No Content, or 400 if not found (via GlobalExceptionHandler)
      */
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteComment(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteComment(@PathVariable Long id) {
         logger.info("DELETE /api/comments/{} - Deleting comment", id);
-        
-        try {
-            commentService.deleteComment(id);
-            logger.info("Comment deleted: id={}", id);
-            return ResponseEntity.noContent().build();
-        } catch (IllegalArgumentException e) {
-            logger.warn("{}", e.getMessage());
-            return ResponseEntity.notFound().build();
-        }
+        commentService.deleteComment(id);
+        return ResponseEntity.noContent().build();
     }
 }
