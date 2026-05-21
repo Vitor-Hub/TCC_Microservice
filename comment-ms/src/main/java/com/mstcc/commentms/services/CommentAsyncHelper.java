@@ -2,7 +2,6 @@ package com.mstcc.commentms.services;
 
 import com.mstcc.commentms.feignclients.PostFeignClient;
 import com.mstcc.commentms.feignclients.UserFeignClient;
-import com.mstcc.commentms.dto.PostDTO;
 import com.mstcc.commentms.dto.UserDTO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,37 +65,18 @@ public class CommentAsyncHelper {
     }
 
     /**
-     * Fetches post data asynchronously
-     * @param postId the post ID
-     * @return CompletableFuture containing post data
+     * Checks post existence asynchronously.
+     * Calls the lightweight /exists endpoint to avoid circular Feign call chains.
+     * @param postId the post ID to check
+     * @return CompletableFuture containing true if the post exists
      */
     @Async("taskExecutor")
-    public CompletableFuture<PostDTO> getPostAsync(Long postId) {
-        String threadName = Thread.currentThread().getName();
-        long startTime = System.currentTimeMillis();
-        
-        logger.info("[{}] START - Fetching post async: postId={}", threadName, postId);
-        
-        try {
-            ResponseEntity<PostDTO> response = postFeignClient.getPostById(postId);
-            PostDTO post = response.getBody();
-            
-            long duration = System.currentTimeMillis() - startTime;
-            logger.info("[{}] SUCCESS - Post fetched in {}ms: postId={}", 
-                       threadName, duration, postId);
-            
-            return CompletableFuture.completedFuture(post);
-            
-        } catch (Exception e) {
-            long duration = System.currentTimeMillis() - startTime;
-            logger.error("[{}] FAILED - Post fetch failed in {}ms: postId={}, error={}", 
-                        threadName, duration, postId, e.getMessage());
-            
-            CompletableFuture<PostDTO> failedFuture = new CompletableFuture<>();
-            failedFuture.completeExceptionally(
-                new RuntimeException("Post not found: " + postId, e)
-            );
-            return failedFuture;
+    public CompletableFuture<Boolean> postExistsAsync(Long postId) {
+        ResponseEntity<Boolean> response = postFeignClient.postExists(postId);
+        Boolean exists = response.getBody();
+        if (Boolean.FALSE.equals(exists)) {
+            throw new RuntimeException("Post not found: " + postId);
         }
+        return CompletableFuture.completedFuture(exists);
     }
 }
