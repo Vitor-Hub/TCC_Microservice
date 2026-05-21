@@ -1,8 +1,10 @@
 package com.mstcc.userms.controllers;
 
 import com.mstcc.userms.dto.UserCreateDTO;
+import com.mstcc.userms.dto.UserResponseDTO;
 import com.mstcc.userms.entities.User;
 import com.mstcc.userms.services.UserService;
+import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -12,8 +14,10 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 /**
- * REST controller for User operations
- * Provides CRUD endpoints for user management
+ * REST controller for User operations.
+ * Delegates all business logic to {@link UserService} (DIP).
+ * Exception handling is centralised in {@code GlobalExceptionHandler} (SRP) —
+ * no try/catch blocks are needed here.
  */
 @RestController
 @RequestMapping("/api/users")
@@ -28,127 +32,119 @@ public class UserController {
     }
 
     /**
-     * Retrieves all users
-     * @return list of all users
+     * Returns all registered users.
+     *
+     * @return 200 with list of user response DTOs
      */
     @GetMapping
-    public ResponseEntity<List<User>> getAllUsers() {
+    public ResponseEntity<List<UserResponseDTO>> getAllUsers() {
         logger.info("GET /api/users - Fetching all users");
-        List<User> users = userService.findAllUsers();
+        List<UserResponseDTO> users = userService.findAllUsers().stream()
+                .map(UserResponseDTO::from)
+                .toList();
         logger.info("Returning {} users", users.size());
         return ResponseEntity.ok(users);
     }
 
     /**
-     * Retrieves a user by ID
+     * Returns a single user by ID.
+     *
      * @param id user ID
-     * @return user if found, 404 otherwise
+     * @return 200 with user DTO, or 404 if not found
      */
     @GetMapping("/{id}")
-    public ResponseEntity<User> getUserById(@PathVariable Long id) {
+    public ResponseEntity<UserResponseDTO> getUserById(@PathVariable Long id) {
         logger.info("GET /api/users/{} - Fetching user by id", id);
         return userService.findUserById(id)
                 .map(user -> {
                     logger.info("User found: id={}, username={}", user.getId(), user.getUsername());
-                    return ResponseEntity.ok(user);
+                    return ResponseEntity.ok(UserResponseDTO.from(user));
                 })
                 .orElseGet(() -> {
-                    logger.warn("  User not found: id={}", id);
+                    logger.warn("User not found: id={}", id);
                     return ResponseEntity.notFound().build();
                 });
     }
 
     /**
-     * Retrieves a user by username
-     * @param username the username
-     * @return user if found, 404 otherwise
+     * Returns a single user by username.
+     *
+     * @param username the username to look up
+     * @return 200 with user DTO, or 404 if not found
      */
     @GetMapping("/username/{username}")
-    public ResponseEntity<User> getUserByUsername(@PathVariable String username) {
+    public ResponseEntity<UserResponseDTO> getUserByUsername(@PathVariable String username) {
         logger.info("GET /api/users/username/{} - Fetching user by username", username);
         return userService.findByUsername(username)
-                .map(ResponseEntity::ok)
+                .map(user -> ResponseEntity.ok(UserResponseDTO.from(user)))
                 .orElseGet(() -> {
-                    logger.warn("  User not found: username={}", username);
+                    logger.warn("User not found: username={}", username);
                     return ResponseEntity.notFound().build();
                 });
     }
 
     /**
-     * Creates a new user
-     * @param userDto user data
-     * @return created user with 201 status
+     * Creates a new user.
+     * {@code @Valid} triggers Bean Validation before the method body executes (SRP).
+     *
+     * @param userDto validated request body
+     * @return 201 with created user DTO
      */
     @PostMapping
-    public ResponseEntity<?> createUser(@RequestBody UserCreateDTO userDto) {
-        logger.info("POST /api/users - Creating new user: {}", userDto.getName());
-        
-        try {
-            User user = userDto.toEntity();
-            User savedUser = userService.saveUser(user);
-            logger.info("User created: id={}", savedUser.getId());
-            return ResponseEntity.status(HttpStatus.CREATED).body(savedUser);
-        } catch (IllegalArgumentException e) {
-            logger.error("  Validation error: {}", e.getMessage());
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
+    public ResponseEntity<UserResponseDTO> createUser(@Valid @RequestBody UserCreateDTO userDto) {
+        logger.info("POST /api/users - Creating new user: {}", userDto.getUsername());
+        User savedUser = userService.saveUser(userDto.toEntity());
+        logger.info("User created: id={}", savedUser.getId());
+        return ResponseEntity.status(HttpStatus.CREATED).body(UserResponseDTO.from(savedUser));
     }
 
     /**
-     * Updates an existing user
-     * @param id user ID
-     * @param userDto updated user data
-     * @return updated user or 404 if not found
+     * Updates an existing user.
+     * {@code @Valid} triggers Bean Validation before the method body executes (SRP).
+     *
+     * @param id      user ID
+     * @param userDto validated request body with new values
+     * @return 200 with updated user DTO, or 404 if not found
      */
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateUser(@PathVariable Long id, @RequestBody UserCreateDTO userDto) {
+    public ResponseEntity<UserResponseDTO> updateUser(
+            @PathVariable Long id,
+            @Valid @RequestBody UserCreateDTO userDto) {
         logger.info("PUT /api/users/{} - Updating user", id);
-        
-        try {
-            User userDetails = userDto.toEntity();
-            return userService.updateUser(id, userDetails)
-                    .map(user -> {
-                        logger.info("User updated: id={}", id);
-                        return ResponseEntity.ok(user);
-                    })
-                    .orElseGet(() -> {
-                        logger.warn("  User not found for update: id={}", id);
-                        return ResponseEntity.notFound().build();
-                    });
-        } catch (IllegalArgumentException e) {
-            logger.error("  Validation error: {}", e.getMessage());
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
+        return userService.updateUser(id, userDto.toEntity())
+                .map(user -> {
+                    logger.info("User updated: id={}", id);
+                    return ResponseEntity.ok(UserResponseDTO.from(user));
+                })
+                .orElseGet(() -> {
+                    logger.warn("User not found for update: id={}", id);
+                    return ResponseEntity.notFound().build();
+                });
     }
 
     /**
-     * Deletes a user
+     * Deletes a user.
+     *
      * @param id user ID
-     * @return 204 if successful, 404 if not found
+     * @return 204 if deleted, 404 if not found (via GlobalExceptionHandler)
      */
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteUser(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
         logger.info("DELETE /api/users/{} - Deleting user", id);
-        
-        try {
-            userService.deleteUser(id);
-            logger.info("User deleted: id={}", id);
-            return ResponseEntity.noContent().build();
-        } catch (IllegalArgumentException e) {
-            logger.warn("  {}", e.getMessage());
-            return ResponseEntity.notFound().build();
-        }
+        userService.deleteUser(id);
+        logger.info("User deleted: id={}", id);
+        return ResponseEntity.noContent().build();
     }
 
     /**
-     * Checks if a user exists
+     * Lightweight existence check used by other microservices for cross-service validation.
+     *
      * @param id user ID
-     * @return 200 with boolean, or 200 with false if not found
+     * @return 200 with true if the user exists, false otherwise
      */
     @GetMapping("/{id}/exists")
     public ResponseEntity<Boolean> userExists(@PathVariable Long id) {
         logger.info("GET /api/users/{}/exists - Checking user existence", id);
-        boolean exists = userService.existsById(id);
-        return ResponseEntity.ok(exists);
+        return ResponseEntity.ok(userService.existsById(id));
     }
 }
