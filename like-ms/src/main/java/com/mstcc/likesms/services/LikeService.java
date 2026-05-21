@@ -1,160 +1,82 @@
 package com.mstcc.likesms.services;
 
-import com.mstcc.likesms.dto.CommentDTO;
-import com.mstcc.likesms.dto.PostDTO;
-import com.mstcc.likesms.dto.UserDTO;
 import com.mstcc.likesms.entities.Like;
-import com.mstcc.likesms.exceptions.LikeValidationException;
-import com.mstcc.likesms.repositories.LikeRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 /**
- * Service for managing Like entities with async validation
- * and parallel processing capabilities
+ * Contract for Like business operations.
+ *
+ * <p>Applying DIP: high-level modules ({@code LikeController}) depend on this abstraction,
+ * not on a concrete implementation. The concrete class ({@code LikeServiceImpl}) is wired
+ * by Spring at runtime, keeping controller and implementation independently changeable.
  */
-@Service
-public class LikeService {
-
-    private static final Logger logger = LoggerFactory.getLogger(LikeService.class);
-    private static final int VALIDATION_TIMEOUT_SECONDS = 5;
-
-    private final LikeRepository likeRepository;
-    private final LikeAsyncHelper asyncHelper;
-
-    public LikeService(LikeRepository likeRepository,
-                       LikeAsyncHelper asyncHelper) {
-        this.likeRepository = likeRepository;
-        this.asyncHelper = asyncHelper;
-    }
+public interface LikeService {
 
     /**
-     * Creates a like with parallel validation of user, post, and optional comment
-     * @param like the like entity to create
-     * @return the saved like entity
-     * @throws LikeValidationException if validation fails
+     * Creates a like after parallel validation of the referenced user, post, and/or comment.
+     *
+     * @param like the like entity to persist
+     * @return the saved like with a generated ID
+     * @throws com.mstcc.likesms.exceptions.LikeValidationException if upstream validation fails
+     * @throws IllegalArgumentException if neither postId nor commentId is set
      */
-    @CacheEvict(value = {"likes", "postLikes", "userLikes"}, allEntries = true)
-    public Like createAndValidateLike(Like like) {
-        long startTime = System.currentTimeMillis();
-        logger.info("Creating like - userId: {}, postId: {}, commentId: {}",
-                   like.getUserId(), like.getPostId(), like.getCommentId());
-
-        if (like.getPostId() == null && like.getCommentId() == null) {
-            throw new IllegalArgumentException("Like must reference a post or a comment");
-        }
-
-        try {
-            // User validation is always mandatory
-            CompletableFuture<UserDTO> userFuture = asyncHelper.getUserAsync(like.getUserId());
-
-            // Post validation only when postId is present
-            CompletableFuture<PostDTO> postFuture = like.getPostId() != null
-                ? asyncHelper.getPostAsync(like.getPostId())
-                : CompletableFuture.completedFuture(null);
-
-            // Comment validation only when commentId is present
-            CompletableFuture<CommentDTO> commentFuture = like.getCommentId() != null
-                ? asyncHelper.getCommentAsync(like.getCommentId())
-                : CompletableFuture.completedFuture(null);
-
-            CompletableFuture.allOf(userFuture, postFuture, commentFuture)
-                .get(VALIDATION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-
-            Like savedLike = likeRepository.save(like);
-
-            long duration = System.currentTimeMillis() - startTime;
-            logger.info("Like created successfully in {}ms - likeId: {}", duration, savedLike.getId());
-
-            return savedLike;
-
-        } catch (TimeoutException e) {
-            logger.error("Validation timeout after {}s", VALIDATION_TIMEOUT_SECONDS);
-            throw new LikeValidationException("Validation timeout: external services took too long", e);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            logger.error("Validation interrupted");
-            throw new LikeValidationException("Validation interrupted", e);
-        } catch (ExecutionException e) {
-            logger.error("Validation failed: {}", e.getCause().getMessage());
-            throw new LikeValidationException("Validation failed: " + e.getCause().getMessage(), e);
-        }
-    }
+    Like createAndValidateLike(Like like);
 
     /**
-     * Updates a like with parallel validation
+     * Updates an existing like after re-validating the referenced user and post.
+     *
+     * @param id          ID of the like to update
+     * @param likeDetails updated field values
+     * @return optional containing the updated like, or empty if not found
+     * @throws com.mstcc.likesms.exceptions.LikeValidationException if upstream validation fails
      */
-    @CacheEvict(value = {"likes", "postLikes", "userLikes"}, allEntries = true)
-    public Optional<Like> updateAndValidateLike(Long id, Like likeDetails) {
-        logger.info("Updating like - id: {}", id);
+    Optional<Like> updateAndValidateLike(Long id, Like likeDetails);
 
-        return likeRepository.findById(id).map(like -> {
-            long startTime = System.currentTimeMillis();
+    /**
+     * Retrieves a like by its ID.
+     *
+     * @param id like ID
+     * @return optional containing the like, or empty if not found
+     */
+    Optional<Like> getLikeById(Long id);
 
-            try {
-                CompletableFuture<UserDTO> userFuture = asyncHelper.getUserAsync(likeDetails.getUserId());
-                CompletableFuture<PostDTO> postFuture = asyncHelper.getPostAsync(likeDetails.getPostId());
+    /**
+     * Retrieves all likes for a given post.
+     *
+     * @param postId post ID
+     * @return list of likes (may be empty)
+     */
+    List<Like> findLikesByPostId(Long postId);
 
-                CompletableFuture.allOf(userFuture, postFuture)
-                    .get(VALIDATION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+    /**
+     * Retrieves all likes made by a given user.
+     *
+     * @param userId user ID
+     * @return list of likes (may be empty)
+     */
+    List<Like> findLikesByUserId(Long userId);
 
-                like.setUserId(likeDetails.getUserId());
-                like.setPostId(likeDetails.getPostId());
-                like.setCommentId(likeDetails.getCommentId());
+    /**
+     * Retrieves all likes for a given comment.
+     *
+     * @param commentId comment ID
+     * @return list of likes (may be empty)
+     */
+    List<Like> findLikesByCommentId(Long commentId);
 
-                Like updated = likeRepository.save(like);
+    /**
+     * Deletes a like by its ID.
+     *
+     * @param id like ID
+     */
+    void deleteLike(Long id);
 
-                long duration = System.currentTimeMillis() - startTime;
-                logger.info("Like updated successfully in {}ms", duration);
-
-                return updated;
-
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new LikeValidationException("Validation interrupted", e);
-            } catch (ExecutionException | TimeoutException e) {
-                logger.error("Failed to update like: {}", e.getMessage());
-                throw new LikeValidationException("Failed to update like: " + e.getMessage(), e);
-            }
-        });
-    }
-
-    @Cacheable(value = "likes", key = "#id")
-    public Optional<Like> getLikeById(Long id) {
-        return likeRepository.findById(id);
-    }
-
-    @Cacheable(value = "postLikes", key = "#postId")
-    public List<Like> findLikesByPostId(Long postId) {
-        return likeRepository.findByPostId(postId);
-    }
-
-    @Cacheable(value = "userLikes", key = "#userId")
-    public List<Like> findLikesByUserId(Long userId) {
-        return likeRepository.findByUserId(userId);
-    }
-
-    public List<Like> findLikesByCommentId(Long commentId) {
-        return likeRepository.findByCommentId(commentId);
-    }
-
-    @CacheEvict(value = {"likes", "postLikes", "userLikes"}, allEntries = true)
-    public void deleteLike(Long id) {
-        logger.info("Deleting like - id: {}", id);
-        likeRepository.deleteById(id);
-    }
-
-    public List<Like> findAllLikes() {
-        return likeRepository.findAll();
-    }
+    /**
+     * Retrieves all likes without any filter.
+     *
+     * @return list of all likes
+     */
+    List<Like> findAllLikes();
 }

@@ -52,14 +52,14 @@ public class LikeAsyncHelper {
             UserDTO user = response.getBody();
             
             long duration = System.currentTimeMillis() - startTime;
-            logger.info(" [{}] SUCCESS - User fetched in {}ms: userId={}", 
+            logger.info("[{}] SUCCESS - User fetched in {}ms: userId={}",
                        threadName, duration, userId);
             
             return CompletableFuture.completedFuture(user);
             
         } catch (Exception e) {
             long duration = System.currentTimeMillis() - startTime;
-            logger.error("  [{}] FAILED - User fetch failed in {}ms: userId={}, error={}", 
+            logger.error("[{}] FAILED - User fetch failed in {}ms: userId={}, error={}",
                         threadName, duration, userId, e.getMessage());
             
             CompletableFuture<UserDTO> failedFuture = new CompletableFuture<>();
@@ -87,14 +87,14 @@ public class LikeAsyncHelper {
             PostDTO post = response.getBody();
             
             long duration = System.currentTimeMillis() - startTime;
-            logger.info(" [{}] SUCCESS - Post fetched in {}ms: postId={}", 
+            logger.info("[{}] SUCCESS - Post fetched in {}ms: postId={}",
                        threadName, duration, postId);
             
             return CompletableFuture.completedFuture(post);
             
         } catch (Exception e) {
             long duration = System.currentTimeMillis() - startTime;
-            logger.error("  [{}] FAILED - Post fetch failed in {}ms: postId={}, error={}", 
+            logger.error("[{}] FAILED - Post fetch failed in {}ms: postId={}, error={}",
                         threadName, duration, postId, e.getMessage());
             
             CompletableFuture<PostDTO> failedFuture = new CompletableFuture<>();
@@ -122,14 +122,14 @@ public class LikeAsyncHelper {
             CommentDTO comment = response.getBody();
             
             long duration = System.currentTimeMillis() - startTime;
-            logger.info(" [{}] SUCCESS - Comment fetched in {}ms: commentId={}", 
+            logger.info("[{}] SUCCESS - Comment fetched in {}ms: commentId={}",
                        threadName, duration, commentId);
             
             return CompletableFuture.completedFuture(comment);
             
         } catch (Exception e) {
             long duration = System.currentTimeMillis() - startTime;
-            logger.error("  [{}] FAILED - Comment fetch failed in {}ms: commentId={}, error={}", 
+            logger.error("[{}] FAILED - Comment fetch failed in {}ms: commentId={}, error={}",
                         threadName, duration, commentId, e.getMessage());
             
             CompletableFuture<CommentDTO> failedFuture = new CompletableFuture<>();
