@@ -54,9 +54,15 @@ public class PostServiceImpl implements PostService {
     }
 
     /**
-     * Retrieves a post by ID with user and comments populated.
+     * Retrieves a post by ID with user and comments enrichment where available.
+     *
+     * <p>Upstream calls to user-ms and comment-ms are made in parallel. If either
+     * service times out or fails, the post is still returned with whatever data is
+     * available (null user and/or empty comments). The response is always 200 when
+     * the post exists — upstream availability does not affect the HTTP status.
+     *
      * @param id post ID
-     * @return optional containing post DTO if found
+     * @return optional containing post DTO if found; enrichment fields may be null on upstream failure
      */
     @Cacheable(value = "posts", key = "#id")
     @Override
@@ -65,44 +71,50 @@ public class PostServiceImpl implements PostService {
         long startTime = System.currentTimeMillis();
 
         return postRepository.findById(id).map(post -> {
+            UserDTO user = null;
+            List<CommentDTO> comments = List.of();
+
             try {
                 // Parallel fetch user and comments
                 CompletableFuture<UserDTO> userFuture = asyncHelper.getUserAsync(post.getUserId());
                 CompletableFuture<List<CommentDTO>> commentsFuture = asyncHelper.getCommentsAsync(post.getId());
 
-                // Wait for both with timeout
                 CompletableFuture.allOf(userFuture, commentsFuture)
                     .get(FETCH_TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
-                UserDTO user = userFuture.get();
-                List<CommentDTO> comments = commentsFuture.get();
-
-                long duration = System.currentTimeMillis() - startTime;
-                logger.info("Post fetched successfully in {}ms - postId: {}, comments: {}",
-                           duration, id, comments.size());
-
-                return new PostDTO(post, user, comments);
+                user = userFuture.get();
+                comments = commentsFuture.get();
 
             } catch (TimeoutException e) {
-                logger.error("Timeout fetching post data after {}s for postId: {}",
-                            FETCH_TIMEOUT_SECONDS, id);
-                throw new RuntimeException("Timeout fetching post data", e);
+                logger.warn("Timeout fetching enrichment data for postId: {} after {}s — returning partial response",
+                           id, FETCH_TIMEOUT_SECONDS);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                throw new RuntimeException("Interrupted while fetching post data", e);
+                logger.warn("Interrupted fetching enrichment data for postId: {}", id);
             } catch (ExecutionException e) {
-                logger.error("Failed to fetch post data for postId: {}, error: {}",
-                            id, e.getCause().getMessage());
-                throw new RuntimeException("Failed to fetch post data", e);
+                logger.warn("Failed to fetch enrichment data for postId: {}, error: {}",
+                           id, e.getCause() != null ? e.getCause().getMessage() : e.getMessage());
             }
+
+            long duration = System.currentTimeMillis() - startTime;
+            logger.info("Post fetched in {}ms - postId: {}, comments: {}",
+                       duration, id, comments.size());
+
+            return new PostDTO(post, user, comments);
         });
     }
 
     /**
-     * Retrieves recent posts with user and comments populated.
-     * Uses parallel processing for better performance.
+     * Retrieves recent posts as a lightweight feed — no cross-service enrichment.
+     *
+     * <p>List endpoints return only the data owned by post-ms (id, userId, content,
+     * createdAt). User and comment data are omitted to avoid N×2 upstream calls
+     * (one user fetch + one comment fetch per post) that would saturate user-ms
+     * and comment-ms under high concurrency. Callers that need the full view
+     * should request individual posts via {@link #getPostById(Long)}.
+     *
      * @param limit maximum number of posts to return (capped at 100)
-     * @return list of recent post DTOs
+     * @return list of recent post DTOs without user or comment enrichment
      */
     @Cacheable(value = "allPosts", key = "'feed_recent_' + #limit")
     @Override
@@ -114,27 +126,8 @@ public class PostServiceImpl implements PostService {
             .findAll(PageRequest.of(0, limit, Sort.by(Sort.Direction.DESC, "createdAt")))
             .getContent();
 
-        logger.info("Found {} posts in database", posts.size());
-
-        // Process all posts in parallel
-        List<CompletableFuture<PostDTO>> futures = posts.stream()
-            .map(post -> CompletableFuture.supplyAsync(() -> {
-                try {
-                    UserDTO user = asyncHelper.getUserAsync(post.getUserId())
-                        .get(FETCH_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-                    List<CommentDTO> comments = asyncHelper.getCommentsAsync(post.getId())
-                        .get(FETCH_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-                    return new PostDTO(post, user, comments);
-                } catch (Exception e) {
-                    logger.error("Failed to fetch data for post {}: {}", post.getId(), e.getMessage());
-                    return null;
-                }
-            }, taskExecutor))
-            .collect(Collectors.toList());
-
-        List<PostDTO> result = futures.stream()
-            .map(CompletableFuture::join)
-            .filter(dto -> dto != null)
+        List<PostDTO> result = posts.stream()
+            .map(post -> new PostDTO(post, null, List.of()))
             .collect(Collectors.toList());
 
         long duration = System.currentTimeMillis() - startTime;
@@ -145,9 +138,18 @@ public class PostServiceImpl implements PostService {
     }
 
     /**
-     * Retrieves all posts by a specific user.
+     * Retrieves all posts by a specific user as lightweight DTOs — no cross-service enrichment.
+     *
+     * <p>Pure local read: queries only the post-ms database. No upstream calls are made.
+     * User existence is implicitly validated by the data — if no posts exist for the given
+     * userId, an empty list is returned. Callers requiring user-existence guarantees should
+     * validate through user-ms directly before calling this endpoint.
+     *
+     * <p>This avoids a blocking upstream call on every GET request that would cascade
+     * into 503s whenever user-ms is under pressure.
+     *
      * @param userId user ID
-     * @return list of user's post DTOs
+     * @return list of user's post DTOs without user or comment enrichment
      */
     @Cacheable(value = "userPosts", key = "#userId")
     @Override
@@ -155,36 +157,10 @@ public class PostServiceImpl implements PostService {
         logger.info("Fetching posts for userId: {}", userId);
         long startTime = System.currentTimeMillis();
 
-        // Validate user exists first
-        try {
-            asyncHelper.getUserAsync(userId)
-                .get(FETCH_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-        } catch (Exception e) {
-            logger.error("User not found: userId={}", userId);
-            throw new RuntimeException("User not found: " + userId, e);
-        }
-
         List<Post> posts = postRepository.findByUserId(userId);
-        logger.info("Found {} posts for userId: {}", posts.size(), userId);
 
-        // Process posts in parallel
-        List<CompletableFuture<PostDTO>> futures = posts.stream()
-            .map(post -> asyncHelper.getCommentsAsync(post.getId())
-                .thenApply(comments -> {
-                    try {
-                        UserDTO user = asyncHelper.getUserAsync(post.getUserId())
-                            .get(FETCH_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-                        return new PostDTO(post, user, comments);
-                    } catch (Exception e) {
-                        logger.error("Failed to fetch data for post {}: {}", post.getId(), e.getMessage());
-                        return null;
-                    }
-                }))
-            .collect(Collectors.toList());
-
-        List<PostDTO> result = futures.stream()
-            .map(CompletableFuture::join)
-            .filter(dto -> dto != null)
+        List<PostDTO> result = posts.stream()
+            .map(post -> new PostDTO(post, null, List.of()))
             .collect(Collectors.toList());
 
         long duration = System.currentTimeMillis() - startTime;
@@ -213,18 +189,21 @@ public class PostServiceImpl implements PostService {
 
         Post savedPost = postRepository.save(post);
 
+        // Attempt to enrich with user data; degrade gracefully if user-ms is unavailable.
+        // The post is already persisted — do NOT fail the request due to an enrichment error.
+        UserDTO user = null;
         try {
-            UserDTO user = asyncHelper.getUserAsync(savedPost.getUserId())
+            user = asyncHelper.getUserAsync(savedPost.getUserId())
                 .get(FETCH_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-
-            long duration = System.currentTimeMillis() - startTime;
-            logger.info("Post created successfully in {}ms - postId: {}", duration, savedPost.getId());
-
-            return new PostDTO(savedPost, user, List.of());
         } catch (Exception e) {
-            logger.error("Failed to fetch user data after creating post");
-            throw new RuntimeException("Failed to fetch user data after creating post", e);
+            logger.warn("Could not fetch user data for response enrichment after creating post - postId: {}, userId: {}",
+                       savedPost.getId(), savedPost.getUserId());
         }
+
+        long duration = System.currentTimeMillis() - startTime;
+        logger.info("Post created successfully in {}ms - postId: {}", duration, savedPost.getId());
+
+        return new PostDTO(savedPost, user, List.of());
     }
 
     /**
@@ -254,20 +233,38 @@ public class PostServiceImpl implements PostService {
                 post.setContent(content);
                 Post updatedPost = postRepository.save(post);
 
+                // Fetch user and comments in parallel — same pattern as getPostById.
+                // Enrichment failures degrade gracefully: the post is already saved and
+                // upstream errors must not roll back the update or return 500 to the caller.
+                UserDTO user = null;
+                List<CommentDTO> comments = List.of();
+
                 try {
-                    UserDTO user = asyncHelper.getUserAsync(updatedPost.getUserId())
-                        .get(FETCH_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-                    List<CommentDTO> comments = asyncHelper.getCommentsAsync(updatedPost.getId())
-                        .get(FETCH_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+                    CompletableFuture<UserDTO> userFuture =
+                            asyncHelper.getUserAsync(updatedPost.getUserId());
+                    CompletableFuture<List<CommentDTO>> commentsFuture =
+                            asyncHelper.getCommentsAsync(updatedPost.getId());
 
-                    long duration = System.currentTimeMillis() - startTime;
-                    logger.info("Post updated successfully in {}ms - postId: {}", duration, postId);
+                    CompletableFuture.allOf(userFuture, commentsFuture)
+                            .get(FETCH_TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
-                    return new PostDTO(updatedPost, user, comments);
-                } catch (Exception e) {
-                    logger.error("Failed to fetch post data after update");
-                    throw new RuntimeException("Failed to fetch post data after update", e);
+                    user = userFuture.get();
+                    comments = commentsFuture.get();
+
+                } catch (TimeoutException e) {
+                    logger.warn("Timeout fetching enrichment after update for postId: {} — returning partial response", postId);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    logger.warn("Interrupted fetching enrichment after update for postId: {}", postId);
+                } catch (ExecutionException e) {
+                    logger.warn("Failed to fetch enrichment after update for postId: {}, error: {}",
+                            postId, e.getCause() != null ? e.getCause().getMessage() : e.getMessage());
                 }
+
+                long duration = System.currentTimeMillis() - startTime;
+                logger.info("Post updated successfully in {}ms - postId: {}", duration, postId);
+
+                return new PostDTO(updatedPost, user, comments);
             });
     }
 

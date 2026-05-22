@@ -72,23 +72,31 @@ public class AsyncConfig {
     }
 
     /**
-     * Custom rejection handler that logs rejected tasks
-     * and falls back to caller-runs policy
+     * Rejection handler that aborts immediately when the pool and queue are both full.
+     *
+     * <p>CallerRunsPolicy was the previous strategy, but it is unsafe under spike load:
+     * it runs Feign calls synchronously on the Tomcat request thread, and combined with
+     * Resilience4j retry (up to 3 attempts × 4 s readTimeout) it can block the caller
+     * thread for up to ~13 s per upstream call — and updatePostContentByUser made two
+     * sequential calls, causing P95 latencies of 2+ minutes.
+     *
+     * <p>AbortPolicy throws {@link java.util.concurrent.RejectedExecutionException}, which
+     * Spring's {@code @Async} proxy catches and propagates as an exceptionally-completed
+     * {@link java.util.concurrent.CompletableFuture}. PostServiceImpl's catch blocks then
+     * return partial data (null user / empty comments) immediately, keeping P95 bounded.
      */
     private static class CustomRejectionHandler implements RejectedExecutionHandler {
         private static final Logger log = LoggerFactory.getLogger(CustomRejectionHandler.class);
 
         @Override
         public void rejectedExecution(Runnable r, ThreadPoolExecutor executor) {
-            log.warn(" Task rejected - Queue full! Active: {}, Pool size: {}, Queue size: {}",
+            log.warn("Async task rejected — executor at capacity. Active: {}, Pool: {}, Queue: {}. "
+                    + "Returning partial enrichment data instead of blocking caller thread.",
                     executor.getActiveCount(),
                     executor.getPoolSize(),
                     executor.getQueue().size());
-            
-            if (!executor.isShutdown()) {
-                log.info("Running rejected task in caller thread");
-                r.run();
-            }
+            throw new java.util.concurrent.RejectedExecutionException(
+                    "PostAsync pool saturated — failing fast to protect Tomcat threads");
         }
     }
 }

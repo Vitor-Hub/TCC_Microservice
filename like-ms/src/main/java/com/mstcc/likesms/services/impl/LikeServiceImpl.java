@@ -182,13 +182,22 @@ public class LikeServiceImpl implements LikeService {
 
     /**
      * {@inheritDoc}
+     *
+     * @throws IllegalArgumentException if no like exists with the given ID
      */
     @Override
     @Transactional
     @CacheEvict(value = {"likes", "postLikes", "userLikes"}, allEntries = true)
     public void deleteLike(Long id) {
         logger.info("Deleting like - id: {}", id);
+
+        if (!likeRepository.existsById(id)) {
+            logger.warn("Like not found for deletion - id: {}", id);
+            throw new IllegalArgumentException("Like not found: " + id);
+        }
+
         likeRepository.deleteById(id);
+        logger.info("Like deleted successfully - id: {}", id);
     }
 
     /**
