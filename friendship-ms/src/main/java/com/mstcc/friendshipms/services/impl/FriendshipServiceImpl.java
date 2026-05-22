@@ -77,6 +77,15 @@ public class FriendshipServiceImpl implements FriendshipService {
         // preventing duplicate friendship entries with swapped user IDs.
         normaliseUserIdOrder(friendship);
 
+        if (friendshipRepository.existsByUserId1AndUserId2(
+                friendship.getUserId1(), friendship.getUserId2())) {
+            logger.warn("Duplicate friendship request - userId1: {}, userId2: {}",
+                    friendship.getUserId1(), friendship.getUserId2());
+            throw new IllegalArgumentException(
+                    "Friendship already exists between users "
+                    + friendship.getUserId1() + " and " + friendship.getUserId2());
+        }
+
         try {
             CompletableFuture<UserDTO> user1Future = asyncHelper.getUserAsync(friendship.getUserId1());
             CompletableFuture<UserDTO> user2Future = asyncHelper.getUserAsync(friendship.getUserId2());
@@ -118,20 +127,16 @@ public class FriendshipServiceImpl implements FriendshipService {
 
     /**
      * {@inheritDoc}
+     *
+     * <p>Pure read against the local database — no upstream calls.
+     * Upstream availability must not affect the ability to list friendships that are already persisted.
+     * User existence is implicitly guaranteed by the create path, which validates both users before saving.
      */
     @Override
     @Cacheable(value = "userFriendships", key = "#userId")
     public List<Friendship> findFriendshipsByUserId(Long userId) {
         logger.info("Fetching friendships for userId: {}", userId);
         long startTime = System.currentTimeMillis();
-
-        try {
-            asyncHelper.getUserAsync(userId)
-                    .get(VALIDATION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-        } catch (Exception e) {
-            logger.error("User not found: userId={}", userId);
-            throw new FriendshipValidationException("User not found: " + userId, e);
-        }
 
         List<Friendship> friendships = friendshipRepository.findByUserId1OrUserId2(userId, userId);
 

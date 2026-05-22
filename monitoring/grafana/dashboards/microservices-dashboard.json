@@ -395,7 +395,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "sum(rate(http_server_requests_seconds_count{job=~\".*-service\", outcome=\"SUCCESS\"}[1m])) by (job) / sum(rate(http_server_requests_seconds_count{job=~\".*-service\"}[1m])) by (job) * 100",
+          "expr": "(sum by(job)(rate(http_server_requests_seconds_count{job=~\".*-service\", outcome=\"SUCCESS\"}[1m])) + (sum by(job)(rate(http_server_requests_seconds_count{job=~\".*-service\", status=\"409\"}[1m])) or sum by(job)(rate(http_server_requests_seconds_count{job=~\".*-service\"}[1m])) * 0)) / sum by(job)(rate(http_server_requests_seconds_count{job=~\".*-service\"}[1m])) * 100",
           "legendFormat": "{{job}}",
           "range": true,
           "refId": "A"
@@ -603,7 +603,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "sum(rate(http_server_requests_seconds_count{job=~\".*-service\", outcome=~\"CLIENT_ERROR|SERVER_ERROR\"}[1m])) / sum(rate(http_server_requests_seconds_count{job=~\".*-service\"}[1m])) * 100",
+          "expr": "sum(rate(http_server_requests_seconds_count{job=~\".*-service\", outcome=~\"CLIENT_ERROR|SERVER_ERROR\", status!=\"409\"}[1m])) / sum(rate(http_server_requests_seconds_count{job=~\".*-service\"}[1m])) * 100",
           "legendFormat": "Taxa de Erro",
           "range": true,
           "refId": "A"

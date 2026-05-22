@@ -178,13 +178,16 @@ resilience4j:
   retry:
     instances:
       default:
-        maxAttempts: 3
+        # maxAttempts reduced to 1 (no retry) for upstream enrichment calls.
+        # Retrying SocketTimeoutException under spike load amplifies pressure on
+        # already-saturated upstream services (3 attempts x 4s readTimeout = 12s per call).
+        # The post-ms enrichment path already degrades gracefully on failure, so a
+        # single attempt is sufficient — fast-fail is preferable to amplified load.
+        maxAttempts: 1
         waitDuration: 500ms
-        enable-exponential-backoff: true
-        exponential-backoff-multiplier: 2
+        enable-exponential-backoff: false
         retry-exceptions:
           - java.net.ConnectException
-          - java.net.SocketTimeoutException
   
   bulkhead:
     instances:

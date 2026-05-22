@@ -2,6 +2,7 @@ package com.mstcc.friendshipms.exception;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -42,17 +43,27 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Handles explicit business rule violations (e.g. self-friendship, entity not found).
+     * Handles explicit business rule violations.
+     *
+     * <p>"Already exists" violations return 409 Conflict so that load-test runners
+     * (e.g. K6) can distinguish idempotent retries from genuine client errors.
+     * All other {@code IllegalArgumentException}s (e.g. self-friendship) return 400.
      *
      * @param ex the violated business rule exception
-     * @return 400 Bad Request
+     * @return 409 Conflict if the resource already exists; 400 Bad Request otherwise
      */
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorResponse> handleIllegalArgument(IllegalArgumentException ex) {
         logger.warn("Business rule violation: {}", ex.getMessage());
+        String msg = ex.getMessage();
+        if (msg != null && msg.contains("already exists")) {
+            return ResponseEntity
+                    .status(HttpStatus.CONFLICT)
+                    .body(ErrorResponse.of(409, "Conflict", msg));
+        }
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
-                .body(ErrorResponse.of(400, "Bad Request", ex.getMessage()));
+                .body(ErrorResponse.of(400, "Bad Request", msg));
     }
 
     /**
@@ -67,6 +78,22 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.SERVICE_UNAVAILABLE)
                 .body(ErrorResponse.of(503, "Service Unavailable", "Upstream service error: " + ex.getMessage()));
+    }
+
+    /**
+     * Safety net for duplicate-key violations that escape the service-layer duplicate check
+     * (e.g. race conditions under high concurrency). Returns 409 Conflict instead of 500
+     * so K6 load tests do not count concurrent duplicate friendship attempts as failures.
+     *
+     * @param ex data integrity violation from the database
+     * @return 409 Conflict
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ErrorResponse> handleDataIntegrity(DataIntegrityViolationException ex) {
+        logger.warn("Data integrity violation (likely duplicate friendship): {}", ex.getMostSpecificCause().getMessage());
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(ErrorResponse.of(409, "Conflict", "Resource already exists"));
     }
 
     /**

@@ -9,7 +9,13 @@ import java.time.LocalDateTime;
 @Entity
 @Table(
     name = "friendships",
-    uniqueConstraints = @UniqueConstraint(columnNames = {"user_id1", "user_id2"})
+    uniqueConstraints = @UniqueConstraint(columnNames = {"user_id1", "user_id2"}),
+    indexes = {
+        // The unique constraint already creates an index on (user_id1, user_id2).
+        // A separate index on user_id2 is needed so that findByUserId1OrUserId2
+        // can resolve the user_id2 side of the OR without a full table scan.
+        @Index(name = "idx_friendships_user_id2", columnList = "user_id2")
+    }
 )
 @Setter
 @Getter

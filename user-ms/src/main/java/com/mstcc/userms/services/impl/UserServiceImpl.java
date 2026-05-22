@@ -31,8 +31,15 @@ public class UserServiceImpl implements UserService {
         this.userRepository = userRepository;
     }
 
-    /** {@inheritDoc} */
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Result is cached with a short TTL so that concurrent spike-load requests
+     * are served from memory rather than hitting the database on every call.
+     * The cache is invalidated on any write operation via {@code @CacheEvict}.
+     */
     @Override
+    @Cacheable(value = "allUsers", key = "'all'")
     public List<User> findAllUsers() {
         logger.info("Fetching all users from database");
         return userRepository.findAll();
@@ -40,7 +47,7 @@ public class UserServiceImpl implements UserService {
 
     /** {@inheritDoc} */
     @Override
-    @Cacheable(value = "users", key = "#id", unless = "#result.isEmpty()")
+    @Cacheable(value = "users", key = "#id")
     public Optional<User> findUserById(Long id) {
         logger.info("Fetching user by id: {} (cache miss or first call)", id);
         return userRepository.findById(id);
@@ -48,7 +55,7 @@ public class UserServiceImpl implements UserService {
 
     /** {@inheritDoc} */
     @Override
-    @Cacheable(value = "usersByUsername", key = "#username", unless = "#result.isEmpty()")
+    @Cacheable(value = "usersByUsername", key = "#username")
     public Optional<User> findByUsername(String username) {
         logger.info("Fetching user by username: {} (cache miss or first call)", username);
         return userRepository.findByUsername(username);
@@ -57,7 +64,7 @@ public class UserServiceImpl implements UserService {
     /** {@inheritDoc} */
     @Override
     @Transactional
-    @CacheEvict(value = {"users", "usersByUsername"}, allEntries = true)
+    @CacheEvict(value = {"users", "usersByUsername", "allUsers"}, allEntries = true)
     public User saveUser(User user) {
         logger.info("Creating new user: {}", user.getUsername());
 
@@ -76,7 +83,8 @@ public class UserServiceImpl implements UserService {
     @Transactional
     @Caching(evict = {
         @CacheEvict(value = "users", key = "#id"),
-        @CacheEvict(value = "usersByUsername", allEntries = true)
+        @CacheEvict(value = "usersByUsername", allEntries = true),
+        @CacheEvict(value = "allUsers", allEntries = true)
     })
     public Optional<User> updateUser(Long id, User userDetails) {
         logger.info("Updating user: id={}", id);
@@ -105,7 +113,8 @@ public class UserServiceImpl implements UserService {
     @Transactional
     @Caching(evict = {
         @CacheEvict(value = "users", key = "#id"),
-        @CacheEvict(value = "usersByUsername", allEntries = true)
+        @CacheEvict(value = "usersByUsername", allEntries = true),
+        @CacheEvict(value = "allUsers", allEntries = true)
     })
     public void deleteUser(Long id) {
         logger.info("Deleting user: id={}", id);
