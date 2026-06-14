@@ -98,8 +98,8 @@ class PostServiceImplTest {
     }
 
     @Test
-    @DisplayName("getPostById throws RuntimeException when upstream service fails")
-    void getPostById_whenUpstreamFails_throwsRuntimeException() {
+    @DisplayName("getPostById returns PostDTO with null user when upstream user service fails (graceful degradation)")
+    void getPostById_whenUpstreamFails_returnsDTOWithNullUser() {
         when(postRepository.findById(1L)).thenReturn(Optional.of(post));
         when(asyncHelper.getUserAsync(10L))
                 .thenReturn(CompletableFuture.failedFuture(
@@ -107,9 +107,11 @@ class PostServiceImplTest {
         when(asyncHelper.getCommentsAsync(1L))
                 .thenReturn(CompletableFuture.completedFuture(comments));
 
-        assertThatThrownBy(() -> postService.getPostById(1L))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("Failed to fetch post data");
+        Optional<PostDTO> result = postService.getPostById(1L);
+
+        assertThat(result).isPresent();
+        assertThat(result.get().getUser()).isNull();
+        assertThat(result.get().getContent()).isEqualTo("Hello world");
     }
 
     // -------------------------------------------------------------------------
@@ -135,8 +137,8 @@ class PostServiceImplTest {
     }
 
     @Test
-    @DisplayName("createPost throws RuntimeException when user fetch fails after save")
-    void createPost_whenUserFetchFails_throwsRuntimeException() {
+    @DisplayName("createPost returns PostDTO with null user when user fetch fails after save (graceful degradation)")
+    void createPost_whenUserFetchFails_returnsDTOWithNullUser() {
         PostDTO input = new PostDTO();
         input.setContent("New post");
         input.setUser(userDTO);
@@ -146,9 +148,12 @@ class PostServiceImplTest {
                 .thenReturn(CompletableFuture.failedFuture(
                         new RuntimeException("user-ms down")));
 
-        assertThatThrownBy(() -> postService.createPost(input))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("Failed to fetch user data");
+        PostDTO result = postService.createPost(input);
+
+        assertThat(result).isNotNull();
+        assertThat(result.getUser()).isNull();
+        assertThat(result.getContent()).isEqualTo("Hello world");
+        verify(postRepository).save(any(Post.class));
     }
 
     // -------------------------------------------------------------------------

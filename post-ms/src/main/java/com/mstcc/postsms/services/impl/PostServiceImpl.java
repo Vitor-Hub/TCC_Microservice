@@ -179,6 +179,9 @@ public class PostServiceImpl implements PostService {
     @CacheEvict(value = {"posts", "allPosts", "userPosts"}, allEntries = true)
     @Override
     public PostDTO createPost(PostDTO postDTO) {
+        if (postDTO.getUser() == null) {
+            throw new IllegalArgumentException("User is required");
+        }
         logger.info("Creating new post for userId: {}", postDTO.getUser().getId());
         long startTime = System.currentTimeMillis();
 

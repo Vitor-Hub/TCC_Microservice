@@ -225,11 +225,25 @@ class LikeServiceImplTest {
     // -------------------------------------------------------------------------
 
     @Test
-    @DisplayName("deleteLike removes like by ID")
+    @DisplayName("deleteLike removes like by ID when it exists")
     void deleteLike_deletesSuccessfully() {
+        when(likeRepository.existsById(1L)).thenReturn(true);
+
         assertThatCode(() -> likeService.deleteLike(1L)).doesNotThrowAnyException();
 
         verify(likeRepository).deleteById(1L);
+    }
+
+    @Test
+    @DisplayName("deleteLike throws IllegalArgumentException when like does not exist")
+    void deleteLike_whenNotFound_throwsIllegalArgumentException() {
+        when(likeRepository.existsById(99L)).thenReturn(false);
+
+        assertThatThrownBy(() -> likeService.deleteLike(99L))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Like not found");
+
+        verify(likeRepository, never()).deleteById(any());
     }
 
     // -------------------------------------------------------------------------

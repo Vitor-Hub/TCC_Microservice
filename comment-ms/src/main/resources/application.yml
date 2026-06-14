@@ -136,6 +136,13 @@ management:
         http.server.requests: true
     cache:
       metric-names: comments,postComments,userComments
+  observations:
+    http:
+      server:
+        requests:
+          enabled: true
+  tracing:
+    enabled: false
   health:
     circuitbreakers:
       enabled: true

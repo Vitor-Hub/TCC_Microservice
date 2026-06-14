@@ -84,7 +84,8 @@ public class UserServiceImpl implements UserService {
     @Caching(evict = {
         @CacheEvict(value = "users", key = "#id"),
         @CacheEvict(value = "usersByUsername", allEntries = true),
-        @CacheEvict(value = "allUsers", allEntries = true)
+        @CacheEvict(value = "allUsers", allEntries = true),
+        @CacheEvict(value = "userExists", key = "#id")
     })
     public Optional<User> updateUser(Long id, User userDetails) {
         logger.info("Updating user: id={}", id);
@@ -114,7 +115,8 @@ public class UserServiceImpl implements UserService {
     @Caching(evict = {
         @CacheEvict(value = "users", key = "#id"),
         @CacheEvict(value = "usersByUsername", allEntries = true),
-        @CacheEvict(value = "allUsers", allEntries = true)
+        @CacheEvict(value = "allUsers", allEntries = true),
+        @CacheEvict(value = "userExists", key = "#id")
     })
     public void deleteUser(Long id) {
         logger.info("Deleting user: id={}", id);

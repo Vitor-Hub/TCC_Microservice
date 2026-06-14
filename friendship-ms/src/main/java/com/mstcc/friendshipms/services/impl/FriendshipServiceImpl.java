@@ -161,7 +161,33 @@ public class FriendshipServiceImpl implements FriendshipService {
 
         if (friendshipDetails.getUserId1().equals(friendshipDetails.getUserId2())) {
             logger.error("Cannot update friendship with same user: userId={}", friendshipDetails.getUserId1());
-            throw new IllegalArgumentException("Cannot create friendship with yourself");
+            throw new IllegalArgumentException("Cannot update friendship with yourself");
+        }
+
+        // Normalise ID order before any lookup or persistence so that (A,B) and (B,A)
+        // resolve to the same canonical form, consistent with the create invariant.
+        normaliseUserIdOrder(friendshipDetails);
+
+        // Detect collision with an existing friendship for the same pair, but exclude
+        // the record being updated — otherwise a no-op update on the same users would
+        // always be rejected because the row itself matches the check.
+        //
+        // The previous implementation used findById(id).ifPresent(...) which silently
+        // ignored the collision when the id did not exist (Optional.empty() skips ifPresent),
+        // and also had the condition inverted (threw only when IDs were different, which is
+        // correct, but swallowed the entire check when findById returned empty).
+        // The correct approach: find the owner of the pair and compare its ID to the one
+        // being updated. If they differ, it is a collision with a different row.
+        if (friendshipRepository.existsByUserId1AndUserId2(
+                friendshipDetails.getUserId1(), friendshipDetails.getUserId2())) {
+            friendshipRepository
+                    .findByUserId1AndUserId2(friendshipDetails.getUserId1(), friendshipDetails.getUserId2())
+                    .filter(owner -> !owner.getId().equals(id))
+                    .ifPresent(owner -> {
+                        throw new IllegalArgumentException(
+                                "Friendship already exists between users "
+                                + friendshipDetails.getUserId1() + " and " + friendshipDetails.getUserId2());
+                    });
         }
 
         return friendshipRepository.findById(id).map(friendship -> {

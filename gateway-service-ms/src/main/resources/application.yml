@@ -116,6 +116,13 @@ management:
     distribution:
       percentiles-histogram:
         http.server.requests: true
+  observations:
+    http:
+      server:
+        requests:
+          enabled: true
+  tracing:
+    enabled: false
 
 # Resilience4j Circuit Breaker Configuration
 resilience4j:

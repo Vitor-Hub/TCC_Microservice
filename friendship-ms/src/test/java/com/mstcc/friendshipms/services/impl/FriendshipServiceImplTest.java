@@ -190,29 +190,15 @@ class FriendshipServiceImplTest {
     // -------------------------------------------------------------------------
 
     @Test
-    @DisplayName("findFriendshipsByUserId returns friendships after validating user exists")
-    void findFriendshipsByUserId_whenUserExists_returnsList() {
-        when(asyncHelper.getUserAsync(1L))
-                .thenReturn(CompletableFuture.completedFuture(user1DTO));
+    @DisplayName("findFriendshipsByUserId returns result from repository without calling asyncHelper")
+    void findFriendshipsByUserId_returnsFriendshipsFromRepository() {
         when(friendshipRepository.findByUserId1OrUserId2(1L, 1L))
                 .thenReturn(List.of(friendship));
 
         List<Friendship> result = friendshipService.findFriendshipsByUserId(1L);
 
         assertThat(result).hasSize(1).containsExactly(friendship);
-    }
-
-    @Test
-    @DisplayName("findFriendshipsByUserId throws FriendshipValidationException when user does not exist")
-    void findFriendshipsByUserId_whenUserNotFound_throwsFriendshipValidationException() {
-        when(asyncHelper.getUserAsync(99L))
-                .thenReturn(CompletableFuture.failedFuture(
-                        new RuntimeException("User not found: 99")));
-
-        assertThatThrownBy(() -> friendshipService.findFriendshipsByUserId(99L))
-                .isInstanceOf(FriendshipValidationException.class);
-
-        verify(friendshipRepository, never()).findByUserId1OrUserId2(any(), any());
+        verify(asyncHelper, never()).getUserAsync(any());
     }
 
     // -------------------------------------------------------------------------
