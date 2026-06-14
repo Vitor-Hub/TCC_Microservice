@@ -1,6 +1,7 @@
 package com.mstcc.postsms.controllers;
 
 import com.mstcc.postsms.dto.PostDTO;
+import com.mstcc.postsms.exception.ErrorResponse;
 import com.mstcc.postsms.services.PostService;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -37,8 +38,13 @@ public class PostController {
      * @return list of recent posts
      */
     @GetMapping
-    public ResponseEntity<List<PostDTO>> getAllPosts(
+    public ResponseEntity<?> getAllPosts(
             @RequestParam(defaultValue = "20") int limit) {
+        if (limit <= 0) {
+            return ResponseEntity
+                    .status(HttpStatus.BAD_REQUEST)
+                    .body(ErrorResponse.of(400, "Bad Request", "limit must be greater than 0"));
+        }
         List<PostDTO> posts = postService.getRecentPosts(Math.min(limit, 100));
         return ResponseEntity.ok(posts);
     }

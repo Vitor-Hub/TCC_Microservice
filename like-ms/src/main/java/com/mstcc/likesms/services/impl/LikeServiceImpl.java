@@ -119,9 +119,19 @@ public class LikeServiceImpl implements LikeService {
 
             try {
                 CompletableFuture<UserDTO> userFuture = asyncHelper.getUserAsync(likeDetails.getUserId());
-                CompletableFuture<PostDTO> postFuture = asyncHelper.getPostAsync(likeDetails.getPostId());
 
-                CompletableFuture.allOf(userFuture, postFuture)
+                // Mirror the conditional logic from createAndValidateLike: only validate
+                // the target that is actually set on the updated like, to avoid calling
+                // getPostAsync(null) or getCommentAsync(null) into the upstream services.
+                CompletableFuture<PostDTO> postFuture = likeDetails.getPostId() != null
+                        ? asyncHelper.getPostAsync(likeDetails.getPostId())
+                        : CompletableFuture.completedFuture(null);
+
+                CompletableFuture<CommentDTO> commentFuture = likeDetails.getCommentId() != null
+                        ? asyncHelper.getCommentAsync(likeDetails.getCommentId())
+                        : CompletableFuture.completedFuture(null);
+
+                CompletableFuture.allOf(userFuture, postFuture, commentFuture)
                         .get(VALIDATION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
                 like.setUserId(likeDetails.getUserId());

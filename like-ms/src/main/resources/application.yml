@@ -136,6 +136,13 @@ management:
         http.server.requests: true
     cache:
       metric-names: likes,postLikes,userLikes
+  observations:
+    http:
+      server:
+        requests:
+          enabled: true
+  tracing:
+    enabled: false
   health:
     circuitbreakers:
       enabled: true

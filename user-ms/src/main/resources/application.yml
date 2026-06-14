@@ -110,6 +110,13 @@ management:
         http.server.requests: true
     cache:
       metric-names: users,usersByUsername,userExists  # NEW - cache metrics
+  observations:
+    http:
+      server:
+        requests:
+          enabled: true
+  tracing:
+    enabled: false
   health:
     circuitbreakers:
       enabled: true
