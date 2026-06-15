@@ -1,8 +1,6 @@
+name: mstcc-monitoring
+
 services:
-  # ==========================================================
-  # 📊 MONITORING STACK
-  # ==========================================================
-  
   prometheus:
     image: prom/prometheus:v2.53.0
     container_name: mstcc_prometheus
@@ -18,8 +16,6 @@ services:
       - '--storage.tsdb.retention.time=15d'
       - '--web.console.libraries=/usr/share/prometheus/console_libraries'
       - '--web.console.templates=/usr/share/prometheus/consoles'
-    networks:
-      - mstcc-net
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://localhost:9090/-/healthy || exit 1"]
       interval: 15s
@@ -50,8 +46,6 @@ services:
     depends_on:
       prometheus:
         condition: service_healthy
-    networks:
-      - mstcc-net
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://localhost:3000/api/health || exit 1"]
       interval: 15s
@@ -65,13 +59,6 @@ services:
         reservations:
           memory: 128M
 
-# ==========================================================
-# 🗂️ VOLUMES & NETWORK
-# ==========================================================
 volumes:
   prometheus_data:
   grafana_data:
-
-networks:
-  mstcc-net:
-    external: true  # Usa a rede criada pelo docker-compose.yml principal

@@ -1,0 +1,105 @@
+spring:
+  application:
+    name: monolith
+
+  datasource:
+    url: jdbc:postgresql://localhost:5438/monolith_db
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 100
+      minimum-idle: 50
+      connection-timeout: 5000
+      idle-timeout: 300000
+      max-lifetime: 1800000
+      auto-commit: false
+      connection-test-query: SELECT 1
+      validation-timeout: 3000
+      leak-detection-threshold: 60000
+      pool-name: MonolithHikariPool
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    open-in-view: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          batch_size: 30
+          fetch_size: 50
+        order_inserts: true
+        order_updates: true
+        connection:
+          provider_disables_autocommit: true
+        query:
+          in_clause_parameter_padding: true
+        generate_statistics: false
+
+  cache:
+    type: caffeine
+    caffeine:
+      spec: maximumSize=10000,expireAfterWrite=30m,expireAfterAccess=15m,recordStats
+    cache-names: >
+      users,usersByUsername,userExists,allUsers,
+      posts,allPosts,userPosts,
+      comments,postComments,userComments,
+      likes,postLikes,userLikes,
+      friendships,userFriendships
+
+server:
+  port: 8080
+  tomcat:
+    threads:
+      max: 400
+      min-spare: 100
+    accept-count: 300
+    max-connections: 10000
+    connection-timeout: 20000
+    max-keep-alive-requests: 200
+  http2:
+    enabled: true
+  compression:
+    enabled: true
+    mime-types: application/json,text/html
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+    prometheus:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      application: monolith
+      service: monolith-service
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+  observations:
+    http:
+      server:
+        requests:
+          enabled: true
+  tracing:
+    enabled: false
+
+logging:
+  level:
+    com.mstcc.monolith: INFO
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
+    org.springframework.cache: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

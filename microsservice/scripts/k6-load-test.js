@@ -101,7 +101,7 @@ export const options = {
 // ═══════════════════════════════════════════════════════════════
 // 🌐 CONFIGURAÇÃO BASE
 // ═══════════════════════════════════════════════════════════════
-const BASE_URL = 'http://localhost:18765';  // CORRIGIDO: porta 18765
+const BASE_URL = __ENV.BASE_URL || 'http://localhost:18765';
 
 // SharedArray para IDs criados (compartilhado entre VUs)
 const sharedUserIds = new SharedArray('userIds', function() { return []; });
