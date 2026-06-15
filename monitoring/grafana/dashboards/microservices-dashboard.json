@@ -93,8 +93,8 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "sum(rate(http_server_requests_seconds_count{job=~\".*-service\"}[1m])) by (job)",
-          "legendFormat": "{{job}}",
+          "expr": "sum(rate(http_server_requests_seconds_count{job=\"microservices\"}[1m])) by (application)",
+          "legendFormat": "{{application}}",
           "range": true,
           "refId": "A"
         }
@@ -193,8 +193,8 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "quantile(0.95, http_server_requests_seconds_sum{job=~\".*-service\"} / http_server_requests_seconds_count{job=~\".*-service\"}) by (job) * 1000",
-          "legendFormat": "{{job}} P95",
+          "expr": "quantile(0.95, http_server_requests_seconds_sum{job=\"microservices\"} / http_server_requests_seconds_count{job=\"microservices\"}) by (application) * 1000",
+          "legendFormat": "{{application}} P95",
           "range": true,
           "refId": "A"
         }
@@ -293,8 +293,8 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "jvm_memory_used_bytes{area=\"heap\", job=~\".*-service\"} / 1024 / 1024",
-          "legendFormat": "{{job}}",
+          "expr": "jvm_memory_used_bytes{area=\"heap\", job=\"microservices\"} / 1024 / 1024",
+          "legendFormat": "{{application}}",
           "range": true,
           "refId": "A"
         }
@@ -395,8 +395,8 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "(sum by(job)(rate(http_server_requests_seconds_count{job=~\".*-service\", outcome=\"SUCCESS\"}[1m])) + (sum by(job)(rate(http_server_requests_seconds_count{job=~\".*-service\", status=\"409\"}[1m])) or sum by(job)(rate(http_server_requests_seconds_count{job=~\".*-service\"}[1m])) * 0)) / sum by(job)(rate(http_server_requests_seconds_count{job=~\".*-service\"}[1m])) * 100",
-          "legendFormat": "{{job}}",
+          "expr": "(sum by(application)(rate(http_server_requests_seconds_count{job=\"microservices\", outcome=\"SUCCESS\"}[1m])) + (sum by(application)(rate(http_server_requests_seconds_count{job=\"microservices\", status=\"409\"}[1m])) or sum by(application)(rate(http_server_requests_seconds_count{job=\"microservices\"}[1m])) * 0)) / sum by(application)(rate(http_server_requests_seconds_count{job=\"microservices\"}[1m])) * 100",
+          "legendFormat": "{{application}}",
           "range": true,
           "refId": "A"
         }
@@ -465,7 +465,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "count(up{job=~\".*-service\"} == 1)",
+          "expr": "count(up{job=\"microservices\"} == 1)",
           "legendFormat": "Serviços UP",
           "range": true,
           "refId": "A"
@@ -533,7 +533,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "sum(rate(http_server_requests_seconds_count{job=~\".*-service\"}[1m]))",
+          "expr": "sum(rate(http_server_requests_seconds_count{job=\"microservices\"}[1m]))",
           "legendFormat": "Total RPS",
           "range": true,
           "refId": "A"
@@ -603,7 +603,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "sum(rate(http_server_requests_seconds_count{job=~\".*-service\", outcome=~\"CLIENT_ERROR|SERVER_ERROR\", status!=\"409\"}[1m])) / sum(rate(http_server_requests_seconds_count{job=~\".*-service\"}[1m])) * 100",
+          "expr": "sum(rate(http_server_requests_seconds_count{job=\"microservices\", outcome=~\"CLIENT_ERROR|SERVER_ERROR\", status!=\"409\"}[1m])) / sum(rate(http_server_requests_seconds_count{job=\"microservices\"}[1m])) * 100",
           "legendFormat": "Taxa de Erro",
           "range": true,
           "refId": "A"
@@ -671,7 +671,7 @@
             "uid": "PBFA97CFB590B2093"
           },
           "editorMode": "code",
-          "expr": "quantile(0.95, http_server_requests_seconds_sum{job=~\".*-service\"} / http_server_requests_seconds_count{job=~\".*-service\"}) * 1000",
+          "expr": "quantile(0.95, http_server_requests_seconds_sum{job=\"microservices\"} / http_server_requests_seconds_count{job=\"microservices\"}) * 1000",
           "legendFormat": "P95 Global",
           "range": true,
           "refId": "A"
