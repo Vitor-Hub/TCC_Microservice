@@ -2,81 +2,50 @@ global:
   scrape_interval: 5s
   evaluation_interval: 5s
   scrape_timeout: 4s
-  
+
   external_labels:
-    monitor: 'tcc-microservices'
+    monitor: 'tcc-comparison'
     environment: 'development'
 
-# Configuração dos endpoints a serem monitorados
 scrape_configs:
-  # ========================================
-  # MICROSSERVIÇOS - Spring Boot Actuator
-  # ========================================
-  
-  - job_name: 'user-service'
+
+  # ============================================================
+  # MICROSERVICES — individual Spring Boot actuator endpoints
+  # Scraped via host.docker.internal so Prometheus container can
+  # reach services running in the mstcc-net Docker network whose
+  # ports are published to the host.
+  # ============================================================
+
+  - job_name: 'microservices'
     metrics_path: '/actuator/prometheus'
     static_configs:
-      - targets: ['user-ms:18081']
+      - targets:
+          - 'host.docker.internal:18081'
+          - 'host.docker.internal:18082'
+          - 'host.docker.internal:18083'
+          - 'host.docker.internal:18084'
+          - 'host.docker.internal:18085'
+          - 'host.docker.internal:18765'
         labels:
-          service: 'user-ms'
-          tier: 'backend'
-    
-  - job_name: 'post-service'
+          stack: 'microservices'
+
+  # ============================================================
+  # MONOLITH — single Spring Boot application
+  # ============================================================
+
+  - job_name: 'monolith'
     metrics_path: '/actuator/prometheus'
     static_configs:
-      - targets: ['post-ms:18082']
+      - targets:
+          - 'host.docker.internal:8080'
         labels:
-          service: 'post-ms'
-          tier: 'backend'
-    
-  - job_name: 'comment-service'
-    metrics_path: '/actuator/prometheus'
-    static_configs:
-      - targets: ['comment-ms:18083']
-        labels:
-          service: 'comment-ms'
-          tier: 'backend'
-    
-  - job_name: 'friendship-service'
-    metrics_path: '/actuator/prometheus'
-    static_configs:
-      - targets: ['friendship-ms:18085']
-        labels:
-          service: 'friendship-ms'
-          tier: 'backend'
-    
-  - job_name: 'like-service'
-    metrics_path: '/actuator/prometheus'
-    static_configs:
-      - targets: ['like-ms:18084']
-        labels:
-          service: 'like-ms'
-          tier: 'backend'
-    
-  - job_name: 'gateway-service'
-    metrics_path: '/actuator/prometheus'
-    static_configs:
-      - targets: ['gateway-service-ms:18765']
-        labels:
-          service: 'gateway-ms'
-          tier: 'gateway'
-  
-  # ========================================
-  # EUREKA SERVER
-  # ========================================
-  
-  - job_name: 'eureka-server'
-    metrics_path: '/actuator/prometheus'
-    static_configs:
-      - targets: ['eureka-server-ms:8761']
-        labels:
-          service: 'eureka'
-          tier: 'infrastructure'
-  
-  # ========================================
-  # PROMETHEUS (Self-monitoring)
-  # ========================================
-  
+          stack: 'monolith'
+          service: 'monolith'
+
+  # ============================================================
+  # PROMETHEUS self-monitoring
+  # ============================================================
+
   - job_name: 'prometheus'
     static_configs:
       - targets: ['localhost:9090']
