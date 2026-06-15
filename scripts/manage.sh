@@ -157,8 +157,10 @@ fresh_start() {
     cd "$PROJECT_ROOT"
 
     echo -e "${CYAN}[1/3] Removendo containers e volumes...${NC}"
-    docker compose down -v 2>/dev/null || true
     docker compose -p mstcc-monitoring -f docker-compose.monitoring.yml down -v 2>/dev/null || true
+    docker stop mstcc_prometheus mstcc_grafana 2>/dev/null || true
+    docker rm   mstcc_prometheus mstcc_grafana 2>/dev/null || true
+    docker compose down -v 2>/dev/null || true
 
     echo -e "${CYAN}[2/3] Compilando servicos...${NC}"
     build_all
@@ -341,8 +343,10 @@ generate_report() {
 stop_all() {
     echo -e "${BLUE}[STOP] Parando todos os servicos...${NC}"
     cd "$PROJECT_ROOT"
-    docker compose down 2>/dev/null || true
     docker compose -p mstcc-monitoring -f docker-compose.monitoring.yml down 2>/dev/null || true
+    docker stop mstcc_prometheus mstcc_grafana 2>/dev/null || true
+    docker rm   mstcc_prometheus mstcc_grafana 2>/dev/null || true
+    docker compose down 2>/dev/null || true
     echo -e "${GREEN}Servicos parados.${NC}"
     echo ""
     pause
@@ -358,8 +362,10 @@ clean_all() {
     [ "$confirm" != "yes" ] && { echo "Cancelado."; pause; return; }
 
     cd "$PROJECT_ROOT"
-    docker compose down -v 2>/dev/null || true
     docker compose -p mstcc-monitoring -f docker-compose.monitoring.yml down -v 2>/dev/null || true
+    docker stop mstcc_prometheus mstcc_grafana 2>/dev/null || true
+    docker rm   mstcc_prometheus mstcc_grafana 2>/dev/null || true
+    docker compose down -v 2>/dev/null || true
     docker images | grep "microsservice" | awk '{print $3}' | xargs docker rmi -f 2>/dev/null || true
     echo -e "${GREEN}Limpeza concluida.${NC}"
     echo ""

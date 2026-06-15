@@ -175,7 +175,7 @@ function handleResponse(res, metricTrend, operationName) {
 // 👤 CRIAR USUÁRIO
 function createUser() {
   const payload = JSON.stringify({
-    name: `User ${randomString(8)}`,
+    username: `User ${randomString(8)}`,
     email: randomEmail(),
     password: 'test123'
   });
@@ -693,7 +693,7 @@ export function setup() {
   console.log('👤 Criando usuários iniciais...');
   for (let i = 0; i < 10; i++) {
     const payload = JSON.stringify({
-      name: `Setup User ${i}`,
+      username: `Setup User ${i}`,
       email: `setup${i}_${Date.now()}@test.com`,
       password: 'test123'
     });
