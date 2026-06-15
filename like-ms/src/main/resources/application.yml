@@ -175,17 +175,13 @@ resilience4j:
         wait-duration-in-open-state: 15s  # Increased from 10s - longer recovery
         permitted-number-of-calls-in-half-open-state: 5  # NEW
         automatic-transition-from-open-to-half-open-enabled: true  # NEW
-        record-exceptions:            # NEW - what counts as failure
-          - java.net.ConnectException
-          - java.net.SocketTimeoutException
-          - java.util.concurrent.TimeoutException
-        ignore-exceptions:            # NEW - what doesn't count
+        ignore-exceptions:
           - java.lang.IllegalArgumentException
-  
+
   retry:
     instances:
       default:
-        maxAttempts: 3                # Increased from 2
+        maxAttempts: 1
         waitDuration: 500ms           # Increased from 200ms - less aggressive
         enable-exponential-backoff: true  # NEW - exponential backoff
         exponential-backoff-multiplier: 2  # NEW
@@ -211,10 +207,10 @@ resilience4j:
 logging:
   level:
     com.mstcc.likesms: INFO
-    org.springframework.cloud.openfeign: DEBUG
+    org.springframework.cloud.openfeign: INFO
     org.hibernate.SQL: WARN
     org.hibernate.type.descriptor.sql.BasicBinder: WARN
-    org.springframework.cache: DEBUG
+    org.springframework.cache: INFO
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
     file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

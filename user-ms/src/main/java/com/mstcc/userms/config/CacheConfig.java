@@ -26,7 +26,8 @@ public class CacheConfig {
         CaffeineCacheManager cacheManager = new CaffeineCacheManager(
             "users",              // Cache for getUserById()
             "usersByUsername",    // Cache for findByUsername()
-            "userExists"          // Cache for existsById()
+            "userExists",         // Cache for existsById()
+            "allUsers"            // Cache for findAllUsers()
         );
         
         cacheManager.setCaffeine(Caffeine.newBuilder()

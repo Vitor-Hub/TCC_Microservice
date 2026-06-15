@@ -137,18 +137,11 @@ resilience4j:
         waitDurationInOpenState: 10s
         failureRateThreshold: 50
         eventConsumerBufferSize: 10
-        recordExceptions:
-          - org.springframework.web.client.HttpServerErrorException
-          - java.util.concurrent.TimeoutException
-          - java.io.IOException
     instances:
       userServiceCB:
         baseConfig: default
       postServiceCB:
         baseConfig: default
-        waitDurationInOpenState: 30s
-        failureRateThreshold: 70
-        minimumNumberOfCalls: 15
       commentServiceCB:
         baseConfig: default
       likeServiceCB:
@@ -159,13 +152,12 @@ resilience4j:
   timelimiter:
     configs:
       default:
-        timeoutDuration: 15s
+        timeoutDuration: 8s
     instances:
       userServiceCB:
         baseConfig: default
       postServiceCB:
         baseConfig: default
-        timeoutDuration: 40s
       commentServiceCB:
         baseConfig: default
       likeServiceCB:
@@ -175,5 +167,5 @@ resilience4j:
 
 logging:
   level:
-    org.springframework.cloud.gateway: DEBUG
-    io.github.resilience4j: DEBUG
+    org.springframework.cloud.gateway: INFO
+    io.github.resilience4j: INFO
