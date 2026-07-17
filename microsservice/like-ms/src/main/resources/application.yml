@@ -9,8 +9,11 @@ spring:
     password: like123
     driver-class-name: org.postgresql.Driver
     hikari:
-      maximum-pool-size: 100          # Increased from 50 - supports more concurrent operations
-      minimum-idle: 40                # Increased from 20 - maintains ready connections
+      # Pool sized below Postgres max_connections (100, minus 3 reserved for
+      # superuser) so saturation shows up as queueing, not connection-slot
+      # errors. Same value in every service and in the monolith.
+      maximum-pool-size: 50
+      minimum-idle: 20
       connection-timeout: 5000
       idle-timeout: 300000
       max-lifetime: 1800000
@@ -40,12 +43,8 @@ spring:
           in_clause_parameter_padding: true   # NEW - query plan cache optimization
         generate_statistics: false    # NEW - disable in production
   
-  # Cache configuration
-  cache:
-    type: caffeine
-    caffeine:
-      spec: maximumSize=5000,expireAfterWrite=15m,expireAfterAccess=10m,recordStats
-    cache-names: likes,postLikes,userLikes
+  # Cache policy is defined programmatically in CacheConfig — spring.cache
+  # properties are ignored once a CacheManager bean is declared.
 
   # Feign client optimizations
   cloud:

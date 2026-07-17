@@ -8,8 +8,11 @@ spring:
     password: postgres
     driver-class-name: org.postgresql.Driver
     hikari:
-      maximum-pool-size: 100
-      minimum-idle: 50
+      # Pool sized below Postgres max_connections (100, minus 3 reserved for
+      # superuser) so saturation shows up as queueing, not connection-slot
+      # errors. Same value as each microservice for per-JVM symmetry.
+      maximum-pool-size: 50
+      minimum-idle: 20
       connection-timeout: 5000
       idle-timeout: 300000
       max-lifetime: 1800000
@@ -38,16 +41,9 @@ spring:
           in_clause_parameter_padding: true
         generate_statistics: false
 
-  cache:
-    type: caffeine
-    caffeine:
-      spec: maximumSize=10000,expireAfterWrite=30m,expireAfterAccess=15m,recordStats
-    cache-names: >
-      users,usersByUsername,userExists,allUsers,
-      posts,allPosts,userPosts,
-      comments,postComments,userComments,
-      likes,postLikes,userLikes,
-      friendships,userFriendships
+  # Cache policy is defined programmatically in CacheConfig (per-domain specs
+  # mirroring each microservice) — no spring.cache properties here, they would
+  # be ignored once a CacheManager bean is declared.
 
 server:
   port: 8080
