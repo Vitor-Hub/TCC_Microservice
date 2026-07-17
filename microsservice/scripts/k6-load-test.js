@@ -919,12 +919,16 @@ export function setup() {
     startTime: new Date().toISOString(),
   };
   
-  // Cria usuários iniciais
+  // Cria usuários iniciais. The username carries a per-run unique suffix:
+  // user-ms rejects duplicate usernames with 400, so a fixed "Setup User N"
+  // only works on the first run against a database — every later scenario
+  // would start with zero seed users and probe nothing.
+  const runId = `${Date.now()}_${randomString(4)}`;
   console.log('Criando usuários iniciais...');
   for (let i = 0; i < 10; i++) {
     const payload = JSON.stringify({
-      username: `Setup User ${i}`,
-      email: `setup${i}_${Date.now()}@test.com`,
+      username: `Setup User ${i} ${runId}`,
+      email: `setup${i}_${runId}@test.com`,
       password: 'test123'
     });
     
@@ -949,7 +953,14 @@ export function setup() {
   }
   
   console.log(`${setupData.initialUsers.length} usuários criados`);
-  
+
+  // Fail fast: without seed users the hotspot/failure scenarios would spend
+  // their whole duration in the null-guard sleep, producing an empty run that
+  // looks superficially successful. Abort loudly instead.
+  if (setupData.initialUsers.length === 0) {
+    throw new Error('setup() failed: no seed users created (check user-ms responses above) — aborting run');
+  }
+
   // Cria posts iniciais
   if (setupData.initialUsers.length > 0) {
     console.log('Criando posts iniciais...');
@@ -979,6 +990,10 @@ export function setup() {
     }
     
     console.log(`${setupData.initialPosts.length} posts criados`);
+  }
+
+  if (setupData.initialPosts.length === 0) {
+    throw new Error('setup() failed: no seed posts created (check post-ms responses above) — aborting run');
   }
 
   // Seed comments and friendships so the hotspot cold probe and the failure
