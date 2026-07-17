@@ -1,6 +1,7 @@
 services:
   # ==========================================================
-  # 🌐 EUREKA SERVER - Service Discovery
+  # EUREKA SERVER - Service Discovery
+  # Infrastructure overhead: 0.25 CPU / 256MB
   # ==========================================================
   eureka-server-ms:
     build: ./eureka-server-ms
@@ -10,7 +11,7 @@ services:
       - "8761:8761"
     environment:
       - SPRING_PROFILES_ACTIVE=docker
-      - JAVA_OPTS=-Xmx512m -Xms256m -XX:+UseG1GC
+      - JAVA_OPTS=-Xmx192m -Xms96m -XX:+UseG1GC
     networks:
       - mstcc-net
     healthcheck:
@@ -22,12 +23,13 @@ services:
     deploy:
       resources:
         limits:
-          memory: 768M
-        reservations:
+          cpus: '0.25'
           memory: 256M
+        reservations:
+          memory: 96M
 
   # ==========================================================
-  # 👤 USER SERVICE
+  # USER SERVICE - Business service: 0.5 CPU / 512MB
   # ==========================================================
   user-ms:
     build: ./user-ms
@@ -42,7 +44,7 @@ services:
       - SPRING_DATASOURCE_PASSWORD=user123
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server-ms:8761/eureka/
       - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
-      - JAVA_OPTS=-Xmx768m -Xms384m -XX:+UseG1GC
+      - JAVA_OPTS=-Xmx384m -Xms192m -XX:+UseG1GC
     depends_on:
       eureka-server-ms:
         condition: service_healthy
@@ -59,12 +61,13 @@ services:
     deploy:
       resources:
         limits:
-          memory: 1G
+          cpus: '0.50'
+          memory: 512M
         reservations:
-          memory: 384M
+          memory: 192M
 
   # ==========================================================
-  # 📝 POST SERVICE
+  # POST SERVICE - Business service: 0.5 CPU / 512MB
   # ==========================================================
   post-ms:
     build: ./post-ms
@@ -79,7 +82,7 @@ services:
       - SPRING_DATASOURCE_PASSWORD=post123
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server-ms:8761/eureka/
       - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
-      - JAVA_OPTS=-Xmx768m -Xms384m -XX:+UseG1GC
+      - JAVA_OPTS=-Xmx384m -Xms192m -XX:+UseG1GC
     depends_on:
       eureka-server-ms:
         condition: service_healthy
@@ -96,12 +99,13 @@ services:
     deploy:
       resources:
         limits:
-          memory: 1G
+          cpus: '0.50'
+          memory: 512M
         reservations:
-          memory: 384M
+          memory: 192M
 
   # ==========================================================
-  # 💬 COMMENT SERVICE
+  # COMMENT SERVICE - Business service: 0.5 CPU / 512MB
   # ==========================================================
   comment-ms:
     build: ./comment-ms
@@ -116,7 +120,7 @@ services:
       - SPRING_DATASOURCE_PASSWORD=comment123
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server-ms:8761/eureka/
       - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
-      - JAVA_OPTS=-Xmx512m -Xms256m -XX:+UseG1GC
+      - JAVA_OPTS=-Xmx384m -Xms192m -XX:+UseG1GC
     depends_on:
       eureka-server-ms:
         condition: service_healthy
@@ -133,12 +137,13 @@ services:
     deploy:
       resources:
         limits:
-          memory: 768M
+          cpus: '0.50'
+          memory: 512M
         reservations:
-          memory: 256M
+          memory: 192M
 
   # ==========================================================
-  # 👍 LIKE SERVICE
+  # LIKE SERVICE - Business service: 0.5 CPU / 512MB
   # ==========================================================
   like-ms:
     build: ./like-ms
@@ -153,7 +158,7 @@ services:
       - SPRING_DATASOURCE_PASSWORD=like123
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server-ms:8761/eureka/
       - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
-      - JAVA_OPTS=-Xmx512m -Xms256m -XX:+UseG1GC
+      - JAVA_OPTS=-Xmx384m -Xms192m -XX:+UseG1GC
     depends_on:
       eureka-server-ms:
         condition: service_healthy
@@ -170,12 +175,13 @@ services:
     deploy:
       resources:
         limits:
-          memory: 768M
+          cpus: '0.50'
+          memory: 512M
         reservations:
-          memory: 256M
+          memory: 192M
 
   # ==========================================================
-  # 🤝 FRIENDSHIP SERVICE
+  # FRIENDSHIP SERVICE - Business service: 0.5 CPU / 512MB
   # ==========================================================
   friendship-ms:
     build: ./friendship-ms
@@ -190,7 +196,7 @@ services:
       - SPRING_DATASOURCE_PASSWORD=friendship123
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server-ms:8761/eureka/
       - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
-      - JAVA_OPTS=-Xmx512m -Xms256m -XX:+UseG1GC
+      - JAVA_OPTS=-Xmx384m -Xms192m -XX:+UseG1GC
     depends_on:
       eureka-server-ms:
         condition: service_healthy
@@ -207,12 +213,13 @@ services:
     deploy:
       resources:
         limits:
-          memory: 768M
+          cpus: '0.50'
+          memory: 512M
         reservations:
-          memory: 256M
+          memory: 192M
 
   # ==========================================================
-  # 🚪 API GATEWAY - Entry Point (STARTS LAST!)
+  # API GATEWAY - Infrastructure overhead: 0.5 CPU / 512MB
   # ==========================================================
   gateway-service-ms:
     build: ./gateway-service-ms
@@ -224,7 +231,7 @@ services:
       - SPRING_PROFILES_ACTIVE=docker
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server-ms:8761/eureka/
       - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
-      - JAVA_OPTS=-Xmx1024m -Xms512m -XX:+UseG1GC
+      - JAVA_OPTS=-Xmx384m -Xms192m -XX:+UseG1GC
     depends_on:
       eureka-server-ms:
         condition: service_healthy
@@ -249,14 +256,15 @@ services:
     deploy:
       resources:
         limits:
-          memory: 1.5G
-        reservations:
+          cpus: '0.50'
           memory: 512M
+        reservations:
+          memory: 192M
 
   # ==========================================================
-  # 🗄️ POSTGRESQL DATABASES
+  # POSTGRESQL DATABASES - 0.25 CPU / 256MB each
   # ==========================================================
-  
+
   user-ms-db:
     image: postgres:15-alpine
     container_name: user_ms_db
@@ -281,6 +289,7 @@ services:
     deploy:
       resources:
         limits:
+          cpus: '0.25'
           memory: 256M
         reservations:
           memory: 128M
@@ -309,6 +318,7 @@ services:
     deploy:
       resources:
         limits:
+          cpus: '0.25'
           memory: 256M
         reservations:
           memory: 128M
@@ -337,6 +347,7 @@ services:
     deploy:
       resources:
         limits:
+          cpus: '0.25'
           memory: 256M
         reservations:
           memory: 128M
@@ -365,6 +376,7 @@ services:
     deploy:
       resources:
         limits:
+          cpus: '0.25'
           memory: 256M
         reservations:
           memory: 128M
@@ -393,13 +405,11 @@ services:
     deploy:
       resources:
         limits:
+          cpus: '0.25'
           memory: 256M
         reservations:
           memory: 128M
 
-# ==========================================================
-# 📦 VOLUMES
-# ==========================================================
 volumes:
   user_db_data:
     driver: local
@@ -412,9 +422,6 @@ volumes:
   friendship_db_data:
     driver: local
 
-# ==========================================================
-# 🗂️ NETWORK
-# ==========================================================
 networks:
   mstcc-net:
     name: mstcc-net

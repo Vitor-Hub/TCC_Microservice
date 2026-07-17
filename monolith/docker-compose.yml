@@ -1,6 +1,14 @@
 name: mstcc-mono
 
 services:
+  # Business logic envelope: 3.0 CPU / 3072MB / -Xmx2304m
+  # Equivalent to the 6 application containers of the microservices stack
+  # (user-ms, post-ms, comment-ms, like-ms, friendship-ms, gateway-service-ms),
+  # each capped at 0.5 CPU / 512MB / -Xmx384m — heap is 6 x 384m = 2304m, the
+  # same 75%-of-container-limit ratio used by every service. eureka-server-ms
+  # and the 5 per-service Postgres containers are pure microservices
+  # infrastructure overhead with no monolith equivalent, so they are
+  # intentionally excluded from this envelope.
   monolith:
     container_name: mono_app
     build: .
@@ -15,7 +23,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://mono_db:5432/monolith_db
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
-      JAVA_OPTS: -Xmx768m -Xms384m -XX:+UseG1GC
+      JAVA_OPTS: -Xmx2304m -Xms1152m -XX:+UseG1GC
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
       interval: 20s
@@ -26,9 +34,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 1G
+          cpus: '3.00'
+          memory: 3072M
         reservations:
-          memory: 384M
+          memory: 1152M
 
   mono_db:
     image: postgres:15-alpine
@@ -54,6 +63,7 @@ services:
     deploy:
       resources:
         limits:
+          cpus: '0.50'
           memory: 512M
         reservations:
           memory: 256M

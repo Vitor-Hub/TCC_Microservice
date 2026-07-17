@@ -1,14 +1,12 @@
-# Use a imagem base do Java 17
-FROM eclipse-temurin:17-jre-jammy
+# Unified runtime across both architectures: same base image and JVM version
+# as the monolith, so any measured difference is architectural, not runtime.
+FROM eclipse-temurin:21-jre-jammy
 
-# Define o diretório de trabalho
 WORKDIR /app
 
-# Copia o JAR gerado
 COPY target/*.jar app.jar
 
-# Expõe a porta
-EXPOSE 18085
+EXPOSE 18084
 
-# Comando de inicialização
-ENTRYPOINT ["java", "-jar", "app.jar"]
+# Heap settings come from docker-compose via JAVA_OPTS (resource envelope).
+ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar app.jar"]
