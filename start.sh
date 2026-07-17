@@ -57,9 +57,13 @@ check_k6() {
     return 0
 }
 
-run_k6() {
+# Core k6 runner without the interactive pause, so it can be chained by the
+# full-battery mode. k6 exits non-zero when thresholds are crossed (breakpoint
+# does this BY DESIGN when it aborts at 20% errors), so never let that kill
+# the console: results are saved either way.
+_run_k6() {
     local base_url=$1 label=$2 extra_args=${3:-""}
-    check_k6 || return
+    check_k6 || return 1
     mkdir -p "$RESULTS_DIR"
     local ts tag out_json out_summary
     ts=$(date +%Y%m%d_%H%M%S)
@@ -67,19 +71,77 @@ run_k6() {
     out_json="$RESULTS_DIR/${tag}_${ts}.json"
     out_summary="$RESULTS_DIR/${tag}_${ts}_summary.json"
 
-    echo -e "${BLUE}[K6] $label${NC}"
-    echo -e "${CYAN}  Output: $out_json${NC}"
+    # The per-request JSON stream is skipped for the breakpoint scenario: at up
+    # to 1500 VUs it produces a multi-GB file and the write overhead throttles
+    # k6 itself, distorting the very load curve the scenario exists to measure.
+    # The summary export and the Grafana time series cover that analysis.
+    local out_args=()
+    if [[ "$extra_args" != *"SCENARIO=breakpoint"* ]]; then
+        out_args=(--out "json=$out_json")
+        echo -e "${BLUE}[K6] $label${NC}"
+        echo -e "${CYAN}  Output: $out_json${NC}"
+    else
+        echo -e "${BLUE}[K6] $label${NC}"
+        echo -e "${CYAN}  Output: summary only (per-request JSON disabled for breakpoint)${NC}"
+    fi
     echo ""
     # shellcheck disable=SC2086
     k6 run \
         --env BASE_URL="$base_url" \
-        --out "json=$out_json" \
+        ${out_args[@]+"${out_args[@]}"} \
         --summary-export "$out_summary" \
         $extra_args \
-        "$K6_SCRIPT"
+        "$K6_SCRIPT" \
+        || echo -e "${YELLOW}k6 exited non-zero (thresholds crossed or breakpoint abort) — results were still saved.${NC}"
     echo ""
     echo -e "${GREEN}Test finished.  Summary: ${CYAN}$out_summary${NC}"
     echo ""
+}
+
+run_k6() {
+    _run_k6 "$@"
+    pause
+}
+
+# Failure-injection test, delegated to the orchestrator script (stops the
+# target container at t=2min, restarts at t=4min while k6 probes all domains).
+run_failure() {
+    local arch=$1
+    "$MICRO_DIR/scripts/run-failure-test.sh" "$arch" \
+        || echo -e "${RED}Failure test did not complete — check that the $arch stack is up.${NC}"
+}
+
+# Runs the four thesis scenarios back-to-back for one architecture:
+# full_suite -> hotspot -> failure injection -> breakpoint (last on purpose:
+# it stresses the stack to its breaking point, so run a Fresh Start afterwards
+# before collecting any further data).
+run_battery() {
+    local arch=$1 url health_url
+    if [[ "$arch" == "micro" ]]; then
+        url="http://localhost:18765"
+    else
+        url="http://localhost:8080"
+    fi
+    health_url="$url/actuator/health"
+
+    check_k6 || { pause; return; }
+    if ! curl -f -s "$health_url" > /dev/null 2>&1; then
+        echo -e "${RED}$arch stack is not answering at $health_url — deploy it first.${NC}"
+        pause; return
+    fi
+
+    echo -e "${BOLD}Full battery ($arch): full_suite (~18m) + hotspot (~7m) + failure (~6m) + breakpoint (~14m)${NC}"
+    echo -e "${YELLOW}Close other CPU-hungry containers/apps first; keep monitoring running for Grafana captures.${NC}"
+    echo -ne "Continue? (yes/no): "; read -r confirm
+    [[ "$confirm" != "yes" ]] && { echo "Cancelled."; pause; return; }
+
+    _run_k6 "$url" "${arch}_full_suite"
+    _run_k6 "$url" "${arch}_hotspot"    "--env SCENARIO=hotspot"
+    run_failure "$arch"
+    _run_k6 "$url" "${arch}_breakpoint" "--env SCENARIO=breakpoint"
+
+    echo -e "${GREEN}Battery finished. Results in ${CYAN}$RESULTS_DIR${NC}"
+    echo -e "${YELLOW}The breakpoint run left the stack stressed — do a Fresh Start before any new measurement.${NC}"
     pause
 }
 
@@ -170,9 +232,13 @@ micro_logs() {
 
 micro_k6() {
     echo -e "${BLUE}[MICRO] K6 — select scenario:${NC}"
-    echo "  1) Full suite (~18 min)      2) Baseline (5 VUs, 2 min)"
+    echo "  1) Full suite (~18 min)         2) Baseline (5 VUs, 2 min)"
     echo "  3) Steady load (20 VUs, 3 min)  4) Stress test (up to 150 VUs)"
     echo "  5) Spike test (up to 200 VUs)   6) Read-heavy (30 VUs, 2 min)"
+    echo "  7) Breakpoint (~14 min, aborts on 20% error rate)"
+    echo "  8) Hotspot — asymmetric load, bulkhead isolation (~7 min)"
+    echo "  9) Failure injection — stops comment-ms mid-test (~6 min)"
+    echo " 10) FULL BATTERY — all 4 thesis scenarios (~45 min)"
     echo "  0) Back"
     echo -ne "Option: "; read -r opt
     local url="http://localhost:18765"
@@ -183,6 +249,10 @@ micro_k6() {
         4) run_k6 "$url" "micro_stress" ;;
         5) run_k6 "$url" "micro_spike" ;;
         6) run_k6 "$url" "micro_read_heavy" "--duration 2m --vus 30" ;;
+        7) run_k6 "$url" "micro_breakpoint" "--env SCENARIO=breakpoint" ;;
+        8) run_k6 "$url" "micro_hotspot"    "--env SCENARIO=hotspot" ;;
+        9) run_failure micro; pause ;;
+        10) run_battery micro ;;
         0) return ;;
     esac
 }
@@ -283,9 +353,13 @@ mono_logs() {
 
 mono_k6() {
     echo -e "${BLUE}[MONO] K6 — select scenario:${NC}"
-    echo "  1) Full suite (~18 min)      2) Baseline (5 VUs, 2 min)"
+    echo "  1) Full suite (~18 min)         2) Baseline (5 VUs, 2 min)"
     echo "  3) Steady load (20 VUs, 3 min)  4) Stress test (up to 150 VUs)"
     echo "  5) Spike test (up to 200 VUs)   6) Read-heavy (30 VUs, 2 min)"
+    echo "  7) Breakpoint (~14 min, aborts on 20% error rate)"
+    echo "  8) Hotspot — asymmetric load, bulkhead isolation (~7 min)"
+    echo "  9) Failure injection — stops mono_app mid-test (~6 min)"
+    echo " 10) FULL BATTERY — all 4 thesis scenarios (~45 min)"
     echo "  0) Back"
     echo -ne "Option: "; read -r opt
     local url="http://localhost:8080"
@@ -296,6 +370,10 @@ mono_k6() {
         4) run_k6 "$url" "mono_stress" ;;
         5) run_k6 "$url" "mono_spike" ;;
         6) run_k6 "$url" "mono_read_heavy" "--duration 2m --vus 30" ;;
+        7) run_k6 "$url" "mono_breakpoint" "--env SCENARIO=breakpoint" ;;
+        8) run_k6 "$url" "mono_hotspot"    "--env SCENARIO=hotspot" ;;
+        9) run_failure mono; pause ;;
+        10) run_battery mono ;;
         0) return ;;
     esac
 }
