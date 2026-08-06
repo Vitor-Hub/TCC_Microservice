@@ -266,16 +266,26 @@ run_k6_scenario() {
     timestamp=$(date +%Y%m%d_%H%M%S)
     local tag
     tag=$(echo "$label" | tr ' ' '_' | tr '[:upper:]' '[:lower:]')
-    local out_json="$RESULTS_DIR/${tag}_${timestamp}.json"
     local out_summary="$RESULTS_DIR/${tag}_${timestamp}_summary.json"
+    local out_json="$RESULTS_DIR/${tag}_${timestamp}.json"
+    local k6_output_args=()
+
+    if [ "${K6_DETAILED_JSON:-false}" = "true" ]; then
+        k6_output_args=(--out "json=$out_json")
+    fi
 
     echo -e "${BLUE}[K6] $label  ($duration_note)${NC}"
-    echo -e "${CYAN}  Resultado: $out_json${NC}"
+    echo -e "${CYAN}  Summary: $out_summary${NC}"
+    if [ "${K6_DETAILED_JSON:-false}" = "true" ]; then
+        echo -e "${YELLOW}  JSON detalhado: $out_json${NC}"
+    else
+        echo -e "${YELLOW}  JSON detalhado desativado (use K6_DETAILED_JSON=true para habilitar).${NC}"
+    fi
     echo ""
 
     # shellcheck disable=SC2086
     k6 run \
-        --out "json=$out_json" \
+        "${k6_output_args[@]}" \
         --summary-export "$out_summary" \
         $extra_args \
         "$K6_SCRIPT"
