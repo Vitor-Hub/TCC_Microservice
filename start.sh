@@ -111,6 +111,14 @@ run_failure() {
         || echo -e "${RED}Failure test did not complete — check that the $arch stack is up.${NC}"
 }
 
+# 5-minute idle gap between battery scenarios so the transition is visible
+# as a flat segment on the Prometheus/Grafana timeline.
+battery_cooldown() {
+    echo -e "${YELLOW}Cooldown: waiting 5min before the next scenario (keeps the Prometheus graph readable)...${NC}"
+    for i in {300..1}; do printf "\r  %02ds remaining..." $i; sleep 1; done
+    echo ""
+}
+
 # Runs the four thesis scenarios back-to-back for one architecture:
 # full_suite -> hotspot -> failure injection -> breakpoint (last on purpose:
 # it stresses the stack to its breaking point, so run a Fresh Start afterwards
@@ -130,14 +138,17 @@ run_battery() {
         pause; return
     fi
 
-    echo -e "${BOLD}Full battery ($arch): full_suite (~18m) + hotspot (~7m) + failure (~6m) + breakpoint (~14m)${NC}"
+    echo -e "${BOLD}Full battery ($arch): full_suite (~18m) + hotspot (~7m) + failure (~6m) + breakpoint (~14m) + 3x 5min cooldown${NC}"
     echo -e "${YELLOW}Close other CPU-hungry containers/apps first; keep monitoring running for Grafana captures.${NC}"
     echo -ne "Continue? (yes/no): "; read -r confirm
     [[ "$confirm" != "yes" ]] && { echo "Cancelled."; pause; return; }
 
     _run_k6 "$url" "${arch}_full_suite"
+    battery_cooldown
     _run_k6 "$url" "${arch}_hotspot"    "--env SCENARIO=hotspot"
+    battery_cooldown
     run_failure "$arch"
+    battery_cooldown
     _run_k6 "$url" "${arch}_breakpoint" "--env SCENARIO=breakpoint"
 
     echo -e "${GREEN}Battery finished. Results in ${CYAN}$RESULTS_DIR${NC}"
@@ -238,7 +249,7 @@ micro_k6() {
     echo "  7) Breakpoint (~14 min, aborts on 20% error rate)"
     echo "  8) Hotspot — asymmetric load, bulkhead isolation (~7 min)"
     echo "  9) Failure injection — stops comment-ms mid-test (~6 min)"
-    echo " 10) FULL BATTERY — all 4 thesis scenarios (~45 min)"
+    echo " 10) FULL BATTERY — all 4 thesis scenarios (~60 min)"
     echo "  0) Back"
     echo -ne "Option: "; read -r opt
     local url="http://localhost:18765"
@@ -359,7 +370,7 @@ mono_k6() {
     echo "  7) Breakpoint (~14 min, aborts on 20% error rate)"
     echo "  8) Hotspot — asymmetric load, bulkhead isolation (~7 min)"
     echo "  9) Failure injection — stops mono_app mid-test (~6 min)"
-    echo " 10) FULL BATTERY — all 4 thesis scenarios (~45 min)"
+    echo " 10) FULL BATTERY — all 4 thesis scenarios (~60 min)"
     echo "  0) Back"
     echo -ne "Option: "; read -r opt
     local url="http://localhost:8080"
