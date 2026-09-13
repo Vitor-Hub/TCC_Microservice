@@ -56,9 +56,10 @@ No Windows, o caminho mais simples é o **WSL** (um Linux dentro do Windows, ofi
 
 2. **Instalação do Docker Desktop**: baixar em [docker.com/products/docker-desktop](https://www.docker.com/products/docker-desktop/), instalar com as opções padrão (ele detecta o WSL sozinho) e abrir o programa. Em *Settings → Resources → WSL integration*, confirmar que a integração com o Ubuntu está ligada.
 
-3. **Instalação do k6**: abrir o Ubuntu (menu Iniciar, digitar `Ubuntu`, Enter) e colar as linhas abaixo:
+3. **Instalação das ferramentas e do k6**: abrir o Ubuntu (menu Iniciar, digitar `Ubuntu`, Enter) e colar as linhas abaixo. A primeira instala `curl` e `unzip`, que não vêm por padrão numa instalação nova do WSL e são necessários para baixar e descompactar o pacote:
 
    ```bash
+   sudo apt update && sudo apt install -y curl unzip
    curl -fsSL https://dl.k6.io/key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/k6-archive-keyring.gpg
    echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
    sudo apt update && sudo apt install -y k6
@@ -76,6 +77,9 @@ No Windows, o caminho mais simples é o **WSL** (um Linux dentro do Windows, ofi
 # Docker
 curl -fsSL https://get.docker.com | sudo sh
 sudo usermod -aG docker $USER   # em seguida, é preciso sair e entrar na sessão novamente
+
+# Ferramentas de linha de comando (podem nao vir na imagem base)
+sudo apt update && sudo apt install -y curl unzip
 
 # K6
 curl -fsSL https://dl.k6.io/key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/k6-archive-keyring.gpg
@@ -239,6 +243,7 @@ Em cada submenu, a opção `7) Stop` derruba a pilha correspondente. Fechar o Do
 | Sintoma | Causa provável | Solução |
 |---|---|---|
 | O download trouxe o repositório, sem as aplicações | Foi baixado o **Source code (zip)** em vez do pacote | Baixar o arquivo `TCC_Micros_vs_Monolith.zip` na seção *Assets* da release |
+| `unzip: command not found` ou `curl: command not found` | Instalação nova do WSL ou imagem Linux enxuta | `sudo apt update && sudo apt install -y curl unzip` |
 | `Cannot connect to the Docker daemon` | Docker Desktop não está aberto | Abrir o Docker Desktop e aguardar a baleia estabilizar |
 | Health Check mostra menos de 7/7 | Serviços ainda registrando no Eureka | Aguardar 1 a 2 minutos e repetir o Health Check |
 | Erros 503/405 nos primeiros segundos de teste | Gateway ainda propagando o registro do Eureka (60 a 90 s após ficar healthy) | Aguardar e reiniciar o teste |
