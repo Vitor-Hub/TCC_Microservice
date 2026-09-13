@@ -168,6 +168,25 @@ micro_build() {
     echo -e "${BLUE}[MICRO] Building all microservices...${NC}"
     local services=("eureka-server-ms" "user-ms" "post-ms" "comment-ms" "like-ms" "friendship-ms" "gateway-service-ms")
     local errors=0 count=0 total=${#services[@]}
+
+    # Release package: the jars ship prebuilt and Maven is not installed on the
+    # machine of someone who only wants to run the scenarios. Reuse the jars.
+    if ! command -v mvn >/dev/null 2>&1; then
+        local missing=0
+        for svc in "${services[@]}"; do
+            compgen -G "$MICRO_DIR/$svc/target/*.jar" >/dev/null 2>&1 || missing=1
+        done
+        if [[ $missing -eq 0 ]]; then
+            echo -e "${YELLOW}Maven not found; using the prebuilt jars from the release package.${NC}"
+            pause
+            return
+        fi
+        echo -e "${RED}Maven not found and no prebuilt jars available.${NC}"
+        echo -e "${RED}Install Maven or use the .zip package attached to the release.${NC}"
+        pause
+        return
+    fi
+
     for svc in "${services[@]}"; do
         ((count++)) || true
         echo -e "${CYAN}[$count/$total] $svc${NC}"
@@ -316,6 +335,20 @@ micro_menu() {
 # ---------------------------------------------------------------------------
 mono_build() {
     echo -e "${BLUE}[MONO] Building monolith...${NC}"
+
+    # Same rule as micro_build: in the release package the jar is already there.
+    if ! command -v mvn >/dev/null 2>&1; then
+        if [[ -f "$MONO_DIR/target/monolith-1.0.0.jar" ]]; then
+            echo -e "${YELLOW}Maven not found; using the prebuilt jar from the release package.${NC}"
+            pause
+            return
+        fi
+        echo -e "${RED}Maven not found and no prebuilt jar available.${NC}"
+        echo -e "${RED}Install Maven or use the .zip package attached to the release.${NC}"
+        pause
+        return
+    fi
+
     if (cd "$MONO_DIR" && mvn clean package -DskipTests -q 2>/tmp/build_monolith.log); then
         echo -e "${GREEN}Build successful.${NC}"
     else

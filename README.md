@@ -11,9 +11,26 @@ O objetivo é medir, com testes de carga automatizados, **qual arquitetura se co
 
 ---
 
+## Dois caminhos para executar
+
+| | Caminho rápido | A partir do código |
+|---|---|---|
+| Para quem | quer apenas rodar os cenários e ver os resultados | quer ler, alterar ou recompilar o código |
+| O que baixa | o `.zip` publicado na release (aplicações já compiladas) | o repositório |
+| Precisa instalar | Docker e k6 | Docker, k6, Git, Java 21 e Maven |
+| Tempo até o primeiro teste | poucos minutos | mais 5 a 8 minutos de compilação |
+
+O pacote da release roda tanto em x86_64 quanto em ARM (Apple Silicon). O motivo é que bytecode Java é neutro de arquitetura e as imagens são construídas localmente sobre `eclipse-temurin:21-jre-jammy`, que é multi-arquitetura: a variante correta é escolhida na máquina de quem executa.
+
+---
+
 ## Parte 1: instalação do necessário
 
-São necessários 5 programas: **Git** (baixa o projeto), **Docker** (roda as aplicações em contêineres), **Java 21** e **Maven** (compilam o código) e **K6** (gera a carga de teste). Cada sistema operacional tem uma seção abaixo. Ao final, vale conferir a seção de **recursos do Docker**, porque sem eles as pilhas não sobem.
+Para o **caminho rápido**, são necessários 2 programas: **Docker** (roda as aplicações em contêineres) e **K6** (gera a carga de teste).
+
+Para o caminho **a partir do código**, somam-se outros 3: **Git** (baixa o projeto), **Java 21** e **Maven** (compilam as aplicações).
+
+Cada sistema operacional tem uma seção abaixo. Ao final, vale conferir a seção de **recursos do Docker**, porque sem eles as pilhas não sobem.
 
 ### macOS
 
@@ -25,23 +42,29 @@ São necessários 5 programas: **Git** (baixa o projeto), **Docker** (roda as ap
    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
    ```
 
-3. **Instalação de Git, Docker, Java, Maven e K6** (uma linha só):
+3. **Instalação dos programas**. Para o caminho rápido:
 
    ```bash
-   brew install --cask docker && brew install git openjdk@21 maven k6
+   brew install --cask docker && brew install k6
+   ```
+
+   Para o caminho a partir do código, acrescente os demais:
+
+   ```bash
+   brew install git openjdk@21 maven
    ```
 
 4. **Abertura do Docker Desktop**: `Cmd + Espaço`, digitar `Docker` e pressionar Enter. Na primeira execução ele pede permissões, que devem ser aceitas. O ícone da baleia na barra superior para de se mexer quando o Docker está pronto.
 
 5. **Verificação**: cada comando abaixo deve produzir o resultado indicado.
 
-   | Comando | Resultado esperado |
-   |---|---|
-   | `docker --version` | `Docker version 24` ou superior |
-   | `java -version` | menção a `21` |
-   | `mvn -version` | `Apache Maven 3.9` ou superior |
-   | `k6 version` | qualquer versão |
-   | `git --version` | qualquer versão |
+   | Comando | Resultado esperado | Necessário em |
+   |---|---|---|
+   | `docker --version` | `Docker version 24` ou superior | ambos |
+   | `k6 version` | qualquer versão | ambos |
+   | `git --version` | qualquer versão | a partir do código |
+   | `java -version` | menção a `21` | a partir do código |
+   | `mvn -version` | `Apache Maven 3.9` ou superior | a partir do código |
 
 ### Windows
 
@@ -57,18 +80,23 @@ No Windows, o caminho mais simples é o **WSL** (um Linux dentro do Windows, ofi
 
 2. **Instalação do Docker Desktop**: baixar em [docker.com/products/docker-desktop](https://www.docker.com/products/docker-desktop/), instalar com as opções padrão (ele detecta o WSL sozinho) e abrir o programa. Em *Settings → Resources → WSL integration*, confirmar que a integração com o Ubuntu está ligada.
 
-3. **Instalação de Git, Java, Maven e K6**: abrir o Ubuntu (menu Iniciar, digitar `Ubuntu`, Enter) e colar as linhas abaixo:
+3. **Instalação do k6**: abrir o Ubuntu (menu Iniciar, digitar `Ubuntu`, Enter) e colar as linhas abaixo:
 
    ```bash
-   sudo apt update && sudo apt install -y git openjdk-21-jdk maven
    sudo gpg -k && sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
    echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
    sudo apt update && sudo apt install -y k6
    ```
 
+   Para o caminho a partir do código, acrescente Git, Java e Maven:
+
+   ```bash
+   sudo apt install -y git openjdk-21-jdk maven
+   ```
+
 4. **Verificação** com os mesmos comandos da tabela do macOS. **Daqui em diante, tudo é executado dentro da janela do Ubuntu.**
 
-> **Importante:** o projeto deve ser baixado dentro do sistema de arquivos do próprio Ubuntu (a pasta que abre por padrão, `~`), e **não** em `/mnt/c/...`. Rodar a partir do disco do Windows deixa a compilação muito mais lenta e costuma causar erros de permissão nos scripts.
+> **Importante:** o pacote (ou o repositório) deve ficar dentro do sistema de arquivos do próprio Ubuntu (a pasta que abre por padrão, `~`), e **não** em `/mnt/c/...`. Rodar a partir do disco do Windows deixa tudo muito mais lento e costuma causar erros de permissão nos scripts.
 
 ### Linux (Ubuntu/Debian)
 
@@ -77,13 +105,13 @@ No Windows, o caminho mais simples é o **WSL** (um Linux dentro do Windows, ofi
 curl -fsSL https://get.docker.com | sudo sh
 sudo usermod -aG docker $USER   # em seguida, é preciso sair e entrar na sessão novamente
 
-# Git, Java 21 e Maven
-sudo apt update && sudo apt install -y git openjdk-21-jdk maven
-
 # K6
 sudo gpg -k && sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
 echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
 sudo apt update && sudo apt install -y k6
+
+# Somente para o caminho a partir do código
+sudo apt install -y git openjdk-21-jdk maven
 ```
 
 A verificação usa os mesmos comandos da tabela do macOS.
@@ -109,8 +137,17 @@ Todos os comandos abaixo vão no Terminal (macOS e Linux) ou na janela do Ubuntu
 
 ### Passo 1: obtenção do projeto
 
+**Caminho rápido.** Basta baixar o arquivo `TCC_Micros_vs_Monolith-<versão>.zip` da [página de releases](https://github.com/Vitor-Hub/TCC_Micros_vs_Monolith/releases) e descompactar. As aplicações já vêm compiladas; não há nada para construir com Maven.
+
 ```bash
-git clone https://github.com/Vitor-Hub/TCC_Micros_vs_Monolith.git
+unzip TCC_Micros_vs_Monolith-*.zip
+cd TCC_Micros_vs_Monolith-*/
+```
+
+**A partir do código.** O clone raso baixa somente o estado atual, o que evita o histórico antigo do repositório:
+
+```bash
+git clone --depth 1 https://github.com/Vitor-Hub/TCC_Micros_vs_Monolith.git
 cd TCC_Micros_vs_Monolith
 ```
 
@@ -140,13 +177,15 @@ A sequência `mon`, Enter, `1`, Enter sobe o Prometheus e o Grafana, que gravam 
 
 **Monólito** (mais rápido, convém começar por ele):
 
-1. `mono`, depois `3) Fresh Start`, que compila, apaga dados antigos e sobe tudo do zero. A confirmação é `yes`. Leva de 2 a 3 minutos.
+1. `mono`, depois `3) Fresh Start`, que apaga dados antigos e sobe tudo do zero. A confirmação é `yes`. Leva de 2 a 3 minutos.
 2. De volta ao menu, `4) Health Check` deve mostrar `Monolith App ... OK`.
 
 **Microsserviços** (7 aplicações, demora mais):
 
-1. `micro`, depois `3) Fresh Start`, confirmando com `yes`. Leva de 5 a 8 minutos, porque compila 7 projetos e aguarda 90 s para os serviços se registrarem.
+1. `micro`, depois `3) Fresh Start`, confirmando com `yes`. Leva de 5 a 8 minutos no caminho a partir do código, porque compila 7 projetos, e bem menos no caminho rápido. Em ambos, o console aguarda 90 s para os serviços se registrarem.
 2. `4) Health Check` deve mostrar `7/7 services healthy`. Se aparecer menos, basta aguardar 1 minuto e repetir.
+
+> No caminho rápido, o console detecta que os jars já vêm prontos e pula a compilação, avisando na tela. Não é erro.
 
 > As duas pilhas podem subir ao mesmo tempo, porque as portas não conflitam. Para os testes da monografia, porém, convém rodar uma bateria por vez.
 
@@ -167,7 +206,7 @@ No submenu da arquitetura escolhida, a opção `6) Stress Test (K6)` abre a list
 | 9 | Failure injection | ~6 min | Derruba um componente no meio do teste e mede a disponibilidade (nos microsserviços cai só o `comment-ms`; no monólito cai a aplicação inteira) |
 | 10 | **FULL BATTERY** | ~60 min | Os 4 cenários da monografia em sequência (full suite, hotspot, failure injection e breakpoint), com 5 min de descanso entre eles para o sistema estabilizar |
 
-A reprodução dos dados do Capítulo 4 usa a **opção 10** em cada arquitetura, com um Fresh Start entre uma e outra, porque o breakpoint deixa o sistema saturado.
+A reprodução dos cenários do Capítulo 4 usa a **opção 10** em cada arquitetura, com um Fresh Start entre uma e outra, porque o breakpoint deixa o sistema saturado. Os valores absolutos dependem da máquina, do sistema operacional e da camada de virtualização do Docker, e por isso não devem coincidir com os da monografia; o que se reproduz é o comportamento comparativo entre as duas arquiteturas.
 
 ### Passo 6: leitura dos resultados
 
@@ -186,11 +225,12 @@ Em cada submenu, a opção `7) Stop` derruba a pilha correspondente. Fechar o Do
 | Sintoma | Causa provável | Solução |
 |---|---|---|
 | `Cannot connect to the Docker daemon` | Docker Desktop não está aberto | Abrir o Docker Desktop e aguardar a baleia estabilizar |
+| `Maven not found and no prebuilt jars available` | Caminho a partir do código sem Maven instalado | Instalar o Maven ou usar o `.zip` da release, que já traz tudo compilado |
 | Health Check mostra menos de 7/7 | Serviços ainda registrando no Eureka | Aguardar 1 a 2 minutos e repetir o Health Check |
 | Erros 503/405 nos primeiros segundos de teste | Gateway ainda propagando o registro do Eureka (60 a 90 s após ficar healthy) | Aguardar e reiniciar o teste |
 | K6 termina "com erro" no Breakpoint | O cenário aborta por desenho ao cruzar 20% de falhas | Comportamento esperado; os resultados foram salvos normalmente |
 | `port is already allocated` | Outro programa usando uma das portas | Fechar o programa em conflito ou parar contêineres antigos com `7) Stop` |
-| Build falha com erro de Java | Versão errada do Java | `java -version` deve mostrar 21 |
+| Contêiner morre no meio do teste | Docker sem memória suficiente | Conferir a seção de recursos do Docker acima |
 
 ---
 
@@ -222,10 +262,15 @@ TCC_Micros_vs_Monolith/
 │   └── docker-compose.yml           #   Monólito + PostgreSQL
 │
 ├── monitoring/                      # Prometheus + Grafana (monitora as duas pilhas)
+├── .github/workflows/release.yml    # Publica o pacote .zip a cada tag
 ├── docker-compose.monitoring.yml
 ├── start.sh                         # Console de gerenciamento (ponto de entrada)
 └── README.md
 ```
+
+### Publicação de versões
+
+Cada tag `v*` empurrada para o repositório dispara o workflow `release.yml`, que compila as oito aplicações, monta o `.zip` com os jars, os Dockerfiles, os composes, os scripts e o monitoramento, e anexa o arquivo à release correspondente. É esse pacote que sustenta o caminho rápido.
 
 ### Portas e coexistência
 

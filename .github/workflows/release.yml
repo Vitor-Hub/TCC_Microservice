@@ -1,0 +1,121 @@
+name: Release
+
+# Publica, a cada tag v*, um pacote .zip pronto para execução.
+#
+# O pacote leva os jars já compilados das duas arquiteturas, os Dockerfiles, os
+# composes, o console start.sh, os scripts k6 e o monitoramento. Com ele, quem
+# quiser apenas rodar os cenários precisa somente de Docker e k6: nada de JDK,
+# nada de Maven, nada de clonar o repositório.
+#
+# Sobre multi-arquitetura: não há matriz de build aqui, e isso é proposital.
+# Bytecode Java é neutro de arquitetura e os Dockerfiles apenas copiam o jar
+# sobre eclipse-temurin:21-jre-jammy, que é uma imagem multi-arch oficial. O
+# mesmo pacote roda em x86_64 e em ARM (Apple Silicon), porque a imagem base
+# correta é resolvida na máquina de quem executa, no momento do build local.
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  pacote:
+    name: Compilar e publicar o pacote da tag
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Compilar os 7 microsserviços e o monólito
+        run: |
+          set -euo pipefail
+          for svc in eureka-server-ms user-ms post-ms comment-ms like-ms friendship-ms gateway-service-ms; do
+            echo "::group::build $svc"
+            (cd "microsservice/$svc" && mvn -B -ntp clean package -DskipTests)
+            echo "::endgroup::"
+          done
+          echo "::group::build monolith"
+          (cd monolith && mvn -B -ntp clean package -DskipTests)
+          echo "::endgroup::"
+
+      - name: Montar o pacote
+        id: pacote
+        run: |
+          set -euo pipefail
+          NOME="TCC_Micros_vs_Monolith-${GITHUB_REF_NAME}"
+          DEST="dist/${NOME}"
+          mkdir -p "$DEST"
+
+          # Console e monitoramento
+          cp start.sh docker-compose.monitoring.yml "$DEST/"
+          cp -R monitoring "$DEST/monitoring"
+
+          # Microsserviços: composes, scripts, Dockerfiles e jars
+          mkdir -p "$DEST/microsservice"
+          cp microsservice/docker-compose.yml microsservice/docker-compose.db.yml "$DEST/microsservice/"
+          mkdir -p "$DEST/microsservice/scripts"
+          cp microsservice/scripts/*.js microsservice/scripts/*.sh "$DEST/microsservice/scripts/"
+          for svc in eureka-server-ms user-ms post-ms comment-ms like-ms friendship-ms gateway-service-ms; do
+            mkdir -p "$DEST/microsservice/$svc/target"
+            cp "microsservice/$svc/Dockerfile" "$DEST/microsservice/$svc/"
+            cp "microsservice/$svc"/target/*.jar "$DEST/microsservice/$svc/target/"
+          done
+
+          # Monólito: compose, Dockerfile e jar (o Dockerfile copia um nome fixo)
+          mkdir -p "$DEST/monolith/target"
+          cp monolith/Dockerfile monolith/docker-compose.yml "$DEST/monolith/"
+          cp monolith/target/monolith-1.0.0.jar "$DEST/monolith/target/"
+
+          cat > "$DEST/COMO-EXECUTAR.md" <<'EOF'
+          # Pacote de execução
+
+          Este pacote contém as duas arquiteturas já compiladas. Para rodar, são
+          necessários apenas **Docker** e **k6**; não é preciso JDK nem Maven.
+
+          ```bash
+          chmod +x start.sh
+          ./start.sh
+          ```
+
+          No console, o caminho é: `mon` para subir o monitoramento, depois `mono`
+          ou `micro` e a opção `2) Deploy`, que constrói as imagens a partir dos
+          jars já incluídos aqui. A opção `3) Fresh Start` também funciona e
+          detecta os jars, pulando a compilação.
+
+          Os cenários de teste ficam na opção `6) Stress Test (K6)`. O Grafana
+          responde em http://localhost:3000 (admin/admin).
+
+          A documentação completa, com instalação do zero por sistema operacional
+          e a descrição de cada cenário, está no README do repositório:
+          https://github.com/Vitor-Hub/TCC_Micros_vs_Monolith
+          EOF
+
+          chmod +x "$DEST/start.sh" "$DEST/microsservice/scripts/"*.sh
+          (cd dist && zip -qr "${NOME}.zip" "${NOME}")
+          echo "arquivo=dist/${NOME}.zip" >> "$GITHUB_OUTPUT"
+          ls -lh "dist/${NOME}.zip"
+
+      - name: Publicar no release da tag
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.pacote.outputs.arquivo }}
+          body: |
+            Pacote pronto para execução, com as duas arquiteturas já compiladas.
+
+            Requisitos na máquina: apenas Docker e k6. O mesmo pacote roda em
+            x86_64 e em ARM (Apple Silicon), porque os Dockerfiles usam a imagem
+            base multi-arquitetura `eclipse-temurin:21-jre-jammy`.
+
+            Instruções resumidas no `COMO-EXECUTAR.md` dentro do zip; a versão
+            completa está no README do repositório.
