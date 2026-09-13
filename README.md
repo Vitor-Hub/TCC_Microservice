@@ -59,12 +59,14 @@ No Windows, o caminho mais simples é o **WSL** (um Linux dentro do Windows, ofi
 3. **Instalação do k6**: abrir o Ubuntu (menu Iniciar, digitar `Ubuntu`, Enter) e colar as linhas abaixo:
 
    ```bash
-   sudo gpg -k && sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+   curl -fsSL https://dl.k6.io/key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/k6-archive-keyring.gpg
    echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
    sudo apt update && sudo apt install -y k6
    ```
 
 4. **Verificação** com os mesmos comandos da tabela do macOS. **Daqui em diante, tudo é executado dentro da janela do Ubuntu.**
+
+> Se uma tentativa anterior deixou o repositório do k6 quebrado (erros de `NO_PUBKEY` ou `unsupported filetype`), basta remover o chaveiro antigo antes de repetir o passo 3: `sudo rm -f /usr/share/keyrings/k6-archive-keyring.gpg`.
 
 > **Importante:** o pacote deve ser descompactado dentro do sistema de arquivos do próprio Ubuntu (a pasta que abre por padrão, `~`), e **não** em `/mnt/c/...`. Rodar a partir do disco do Windows deixa tudo muito mais lento e costuma causar erros de permissão nos scripts.
 
@@ -76,7 +78,7 @@ curl -fsSL https://get.docker.com | sudo sh
 sudo usermod -aG docker $USER   # em seguida, é preciso sair e entrar na sessão novamente
 
 # K6
-sudo gpg -k && sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+curl -fsSL https://dl.k6.io/key.gpg | sudo gpg --dearmor -o /usr/share/keyrings/k6-archive-keyring.gpg
 echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
 sudo apt update && sudo apt install -y k6
 ```
