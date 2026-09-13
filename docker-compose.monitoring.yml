@@ -3,6 +3,11 @@ name: mstcc-monitoring
 services:
   prometheus:
     image: prom/prometheus:v2.53.0
+    # Necessario no Docker Engine do Linux, onde host.docker.internal nao existe
+    # por padrao. No Docker Desktop (macOS e Windows) ja existe, e declarar aqui
+    # e inofensivo.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     container_name: mstcc_prometheus
     restart: unless-stopped
     ports:

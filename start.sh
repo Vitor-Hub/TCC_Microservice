@@ -22,13 +22,13 @@ K6_SCRIPT="$MICRO_DIR/scripts/k6-load-test.js"
 RESULTS_DIR="$MICRO_DIR/scripts/test-results"
 
 # ---------------------------------------------------------------------------
-# Detect OS — on Linux Docker Compose needs an extra flag so containers can
-# reach services on the host via host.docker.internal.
+# Acesso a maquina hospedeira
 # ---------------------------------------------------------------------------
-HOST_GATEWAY_FLAG=""
-if [[ "$(uname -s)" == "Linux" ]]; then
-    HOST_GATEWAY_FLAG="--add-host=host.docker.internal:host-gateway"
-fi
+# host.docker.internal nao existe por padrao no Docker Engine do Linux, e o
+# Prometheus precisa dele para raspar as duas pilhas. A forma correta no compose
+# e `extra_hosts` no proprio arquivo (ver docker-compose.monitoring.yml):
+# `--add-host` e flag do `docker run` e faz o `docker compose` falhar com
+# "unknown flag", o que quebrava todo o caminho de Linux e WSL.
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -216,7 +216,7 @@ micro_deploy() {
     echo -e "${BLUE}[MICRO] Deploying microservices...${NC}"
     cd "$MICRO_DIR"
     # shellcheck disable=SC2086
-    docker compose $HOST_GATEWAY_FLAG up -d --build
+    docker compose up -d --build
     echo ""
     echo -e "${YELLOW}Waiting 90s for services to start...${NC}"
     for i in {90..1}; do printf "\r  %02ds remaining..." $i; sleep 1; done
@@ -376,7 +376,7 @@ mono_deploy() {
     echo -e "${BLUE}[MONO] Deploying monolith...${NC}"
     cd "$MONO_DIR"
     # shellcheck disable=SC2086
-    docker compose $HOST_GATEWAY_FLAG up -d --build
+    docker compose up -d --build
     echo ""
     echo -e "${YELLOW}Waiting 60s for service to start...${NC}"
     for i in {60..1}; do printf "\r  %02ds remaining..." $i; sleep 1; done
@@ -486,8 +486,7 @@ mono_menu() {
 mon_start() {
     echo -e "${BLUE}[MON] Starting monitoring stack...${NC}"
     cd "$SCRIPT_DIR"
-    # shellcheck disable=SC2086
-    docker compose $HOST_GATEWAY_FLAG -p mstcc-monitoring -f "$MONITORING_COMPOSE" up -d
+    docker compose -p mstcc-monitoring -f "$MONITORING_COMPOSE" up -d
     echo -e "${GREEN}Monitoring started.${NC}"
     echo -e "  Grafana:    ${CYAN}http://localhost:3000${NC}  (admin/admin)"
     echo -e "  Prometheus: ${CYAN}http://localhost:9090${NC}"

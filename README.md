@@ -295,7 +295,7 @@ As duas pilhas foram desenhadas para rodar simultaneamente sem conflito:
 | Rede Docker | `mstcc-net` | `mono-net` |
 | Prefixo dos contêineres | `mstcc_` | `mono_` |
 
-O Prometheus coleta das duas pilhas via `host.docker.internal` com o rótulo `stack` (`microservices` ou `monolith`). No Linux, o `start.sh` adiciona automaticamente `--add-host=host.docker.internal:host-gateway`.
+O Prometheus coleta das duas pilhas via `host.docker.internal` com o rótulo `stack` (`microservices` ou `monolith`). No Docker Engine do Linux esse nome não existe por padrão, e por isso o serviço do Prometheus declara `extra_hosts: host.docker.internal:host-gateway` no próprio compose. No Docker Desktop, em macOS e Windows, o nome já existe e a declaração é inofensiva.
 
 ### Comparação das arquiteturas
 
