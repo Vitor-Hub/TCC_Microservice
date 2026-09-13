@@ -9,7 +9,7 @@ O objetivo é medir, com testes de carga automatizados, **qual arquitetura se co
 
 Para executar os cenários não é preciso compilar nada. Cada versão publicada traz um **pacote pronto**, com as duas arquiteturas já compiladas, anexado à respectiva release:
 
-**[github.com/Vitor-Hub/TCC_Micros_vs_Monolith/releases/latest](https://github.com/Vitor-Hub/TCC_Micros_vs_Monolith/releases/latest)**
+**[github.com/vispdev/TCC_Micros_vs_Monolith/releases/latest](https://github.com/vispdev/TCC_Micros_vs_Monolith/releases/latest)**
 
 ---
 
@@ -106,7 +106,7 @@ Todos os comandos abaixo vão no Terminal (macOS e Linux) ou na janela do Ubuntu
 
 O pacote fica anexado à release de cada versão. O endereço abaixo leva sempre à mais recente:
 
-**[github.com/Vitor-Hub/TCC_Micros_vs_Monolith/releases/latest](https://github.com/Vitor-Hub/TCC_Micros_vs_Monolith/releases/latest)**
+**[github.com/vispdev/TCC_Micros_vs_Monolith/releases/latest](https://github.com/vispdev/TCC_Micros_vs_Monolith/releases/latest)**
 
 Dentro da seção *Assets*, o arquivo a baixar é:
 
@@ -117,7 +117,7 @@ Dentro da seção *Assets*, o arquivo a baixar é:
 Pelo terminal, o endereço abaixo baixa sempre a versão mais recente, sem precisar saber o número dela:
 
 ```bash
-curl -L -O https://github.com/Vitor-Hub/TCC_Micros_vs_Monolith/releases/latest/download/TCC_Micros_vs_Monolith.zip
+curl -L -O https://github.com/vispdev/TCC_Micros_vs_Monolith/releases/latest/download/TCC_Micros_vs_Monolith.zip
 ```
 
 Em seguida, basta descompactar e entrar na pasta criada, que leva a versão no nome:

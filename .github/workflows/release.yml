@@ -98,7 +98,7 @@ jobs:
 
           A documentação completa, com instalação do zero por sistema operacional
           e a descrição de cada cenário, está no README do repositório:
-          https://github.com/Vitor-Hub/TCC_Micros_vs_Monolith
+          https://github.com/vispdev/TCC_Micros_vs_Monolith
           EOF
 
           chmod +x "$DEST/start.sh" "$DEST/microsservice/scripts/"*.sh
