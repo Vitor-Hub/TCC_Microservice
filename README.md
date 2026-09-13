@@ -151,6 +151,40 @@ A navegação é feita digitando a opção (por exemplo, `mon`) e pressionando E
 
 A sequência `mon`, Enter, `1`, Enter sobe o Prometheus e o Grafana, que gravam as métricas dos testes. Em seguida, `0` volta ao menu principal.
 
+### Sequência completa, tecla por tecla
+
+Quem quiser apenas rodar, sem ler o resto, pode seguir literalmente as sequências abaixo. Cada linha é uma digitação seguida de Enter, e as ações terminam pedindo Enter para continuar.
+
+**Monólito:**
+
+```
+mon     (entra no monitoramento)
+1       (sobe Prometheus e Grafana)
+0       (volta ao menu principal)
+mono    (entra no monólito)
+3       (Fresh Start: limpa e sobe do zero)
+yes     (confirma)
+4       (Health Check: deve mostrar Monolith App ... OK)
+6       (abre a lista de cenários)
+10      (FULL BATTERY, ~60 min; ou 2 para um teste rápido de 2 min)
+```
+
+**Microsserviços:**
+
+```
+mon     (se o monitoramento ainda não estiver de pé)
+1
+0
+micro   (entra nos microsserviços)
+3       (Fresh Start)
+yes     (confirma; aguarda 90 s pelo registro no Eureka)
+4       (Health Check: deve mostrar 7/7 services healthy)
+6       (abre a lista de cenários)
+10      (FULL BATTERY, ~60 min; ou 2 para um teste rápido de 2 min)
+```
+
+Para encerrar, dentro do submenu da arquitetura, a opção `7` derruba a pilha.
+
 ### Passo 4: subida da arquitetura a ser testada
 
 **Monólito** (mais rápido, convém começar por ele):
@@ -163,7 +197,7 @@ A sequência `mon`, Enter, `1`, Enter sobe o Prometheus e o Grafana, que gravam 
 1. `micro`, depois `3) Fresh Start`, confirmando com `yes`. O console aguarda 90 s para os serviços se registrarem.
 2. `4) Health Check` deve mostrar `7/7 services healthy`. Se aparecer menos, basta aguardar 1 minuto e repetir.
 
-> O console avisa na tela que está usando os jars já incluídos no pacote e pula a compilação. Isso é o esperado, não é erro.
+> O console avisa na tela que está usando os jars já incluídos no pacote e pula a compilação. Isso é o esperado, não é erro. A decisão é tomada pela presença ou ausência do código-fonte, e não pelo Maven estar instalado, de modo que o pacote funciona igual em máquinas que tenham Maven.
 
 > As duas pilhas podem subir ao mesmo tempo, porque as portas não conflitam. Para os testes da monografia, porém, convém rodar uma bateria por vez.
 
