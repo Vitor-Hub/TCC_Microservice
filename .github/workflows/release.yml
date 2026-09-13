@@ -88,13 +88,41 @@ jobs:
           ./start.sh
           ```
 
-          No console, o caminho é: `mon` para subir o monitoramento, depois `mono`
-          ou `micro` e a opção `2) Deploy`, que constrói as imagens a partir dos
-          jars já incluídos aqui. A opção `3) Fresh Start` também funciona e
-          detecta os jars, pulando a compilação.
+          ## Sequência, tecla por tecla
 
-          Os cenários de teste ficam na opção `6) Stress Test (K6)`. O Grafana
-          responde em http://localhost:3000 (admin/admin).
+          Cada linha é uma digitação seguida de Enter. As ações terminam pedindo
+          Enter para continuar.
+
+          **Monólito:**
+
+          ```
+          mon     (entra no monitoramento)
+          1       (sobe Prometheus e Grafana)
+          0       (volta ao menu principal)
+          mono    (entra no monólito)
+          3       (Fresh Start: limpa e sobe do zero)
+          yes     (confirma)
+          4       (Health Check: deve mostrar Monolith App ... OK)
+          6       (abre a lista de cenários)
+          10      (FULL BATTERY, ~60 min; ou 2 para um teste rápido de 2 min)
+          ```
+
+          **Microsserviços:**
+
+          ```
+          mon     (se o monitoramento ainda não estiver de pé)
+          1
+          0
+          micro   (entra nos microsserviços)
+          3       (Fresh Start; aguarda 90 s pelo registro no Eureka)
+          yes     (confirma)
+          4       (Health Check: deve mostrar 7/7 services healthy)
+          6       (abre a lista de cenários)
+          10      (FULL BATTERY, ~60 min; ou 2 para um teste rápido de 2 min)
+          ```
+
+          Para encerrar, dentro do submenu da arquitetura, a opção `7` derruba a
+          pilha. O Grafana responde em http://localhost:3000 (admin/admin).
 
           A documentação completa, com instalação do zero por sistema operacional
           e a descrição de cada cenário, está no README do repositório:
