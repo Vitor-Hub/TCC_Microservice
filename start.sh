@@ -169,19 +169,28 @@ micro_build() {
     local services=("eureka-server-ms" "user-ms" "post-ms" "comment-ms" "like-ms" "friendship-ms" "gateway-service-ms")
     local errors=0 count=0 total=${#services[@]}
 
-    # Release package: the jars ship prebuilt and Maven is not installed on the
-    # machine of someone who only wants to run the scenarios. Reuse the jars.
-    if ! command -v mvn >/dev/null 2>&1; then
-        local missing=0
-        for svc in "${services[@]}"; do
-            compgen -G "$MICRO_DIR/$svc/target/*.jar" >/dev/null 2>&1 || missing=1
-        done
-        if [[ $missing -eq 0 ]]; then
-            echo -e "${YELLOW}Maven not found; using the prebuilt jars from the release package.${NC}"
+    # Decide by what is on disk, never by whether Maven happens to be installed:
+    # the release package ships jars without sources, and whoever runs it may
+    # well have Maven available. Keying on Maven made that combination fail.
+    local no_sources=0 no_jars=0
+    for svc in "${services[@]}"; do
+        [[ -f "$MICRO_DIR/$svc/pom.xml" ]] || no_sources=1
+        compgen -G "$MICRO_DIR/$svc/target/*.jar" >/dev/null 2>&1 || no_jars=1
+    done
+
+    if [[ $no_sources -eq 1 ]]; then
+        if [[ $no_jars -eq 0 ]]; then
+            echo -e "${YELLOW}No sources here (release package); using the prebuilt jars.${NC}"
             pause
             return
         fi
-        echo -e "${RED}Maven not found and no prebuilt jars available.${NC}"
+        echo -e "${RED}Neither sources nor prebuilt jars found under $MICRO_DIR.${NC}"
+        pause
+        return
+    fi
+
+    if ! command -v mvn >/dev/null 2>&1; then
+        echo -e "${RED}Maven not found, and this copy has sources to compile.${NC}"
         echo -e "${RED}Install Maven or use the .zip package attached to the release.${NC}"
         pause
         return
@@ -336,14 +345,20 @@ micro_menu() {
 mono_build() {
     echo -e "${BLUE}[MONO] Building monolith...${NC}"
 
-    # Same rule as micro_build: in the release package the jar is already there.
-    if ! command -v mvn >/dev/null 2>&1; then
+    # Same rule as micro_build: decide by what is on disk, not by Maven.
+    if [[ ! -f "$MONO_DIR/pom.xml" ]]; then
         if [[ -f "$MONO_DIR/target/monolith-1.0.0.jar" ]]; then
-            echo -e "${YELLOW}Maven not found; using the prebuilt jar from the release package.${NC}"
+            echo -e "${YELLOW}No sources here (release package); using the prebuilt jar.${NC}"
             pause
             return
         fi
-        echo -e "${RED}Maven not found and no prebuilt jar available.${NC}"
+        echo -e "${RED}Neither sources nor a prebuilt jar found under $MONO_DIR.${NC}"
+        pause
+        return
+    fi
+
+    if ! command -v mvn >/dev/null 2>&1; then
+        echo -e "${RED}Maven not found, and this copy has sources to compile.${NC}"
         echo -e "${RED}Install Maven or use the .zip package attached to the release.${NC}"
         pause
         return
