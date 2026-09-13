@@ -102,9 +102,12 @@ jobs:
           EOF
 
           chmod +x "$DEST/start.sh" "$DEST/microsservice/scripts/"*.sh
-          (cd dist && zip -qr "${NOME}.zip" "${NOME}")
-          echo "arquivo=dist/${NOME}.zip" >> "$GITHUB_OUTPUT"
-          ls -lh "dist/${NOME}.zip"
+          # O anexo sai com nome fixo, sem a versão, para que o endereço
+          # .../releases/latest/download/TCC_Micros_vs_Monolith.zip continue
+          # válido a cada nova release. A versão fica na pasta interna do zip.
+          (cd dist && zip -qr "TCC_Micros_vs_Monolith.zip" "${NOME}")
+          echo "arquivo=dist/TCC_Micros_vs_Monolith.zip" >> "$GITHUB_OUTPUT"
+          ls -lh "dist/TCC_Micros_vs_Monolith.zip"
 
       - name: Publicar no release da tag
         uses: softprops/action-gh-release@v2
